@@ -1,9 +1,9 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=4';
-import { gridFromCage, subdivide } from './subdiv.js?v=4';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=4';
-import { Viewer3D } from './viewer3d.js?v=4';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=4';
-import { initGame } from './game.js?v=4';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=5';
+import { gridFromCage, subdivide } from './subdiv.js?v=5';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=5';
+import { Viewer3D } from './viewer3d.js?v=5';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=5';
+import { initGame } from './game.js?v=5';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -110,7 +110,7 @@ function updateUndoButtons() { $('#btn-undo').disabled = !undo.length; $('#btn-r
 function showSel() {
   const s = viewer.sel, host = $('#selinfo');
   if (!s) {
-    host.innerHTML = `<p class="hint">Click an <b class="c-handle">orange handle</b> on the cage, then drag the gizmo arrows. <b class="c-locked">Red</b> handles sit on the centreplane (keel, stem, sternpost) and only move in height and length.</p>`;
+    host.innerHTML = `<p class="hint"><b>Drag</b> an <b class="c-handle">orange handle</b> directly (it moves in the plane of the view), or click it and use the gizmo arrows or arrow keys. <b class="c-locked">Red</b> handles sit on the centreplane (keel, stem, sternpost) and only move in height and length.</p>`;
     $('#hud-title').innerHTML = hudTitle();
     return;
   }
@@ -325,6 +325,27 @@ function setView(v) {
   else viewer.resize();
 }
 
+// ------------------------------------------------------------------ arrow-key nudging
+// Moves the selected handle(s) in the plane of the current view; Shift for fine steps.
+let lastNudge = 0;
+function nudge(key, fine) {
+  const b = lines.bounds, f = fine ? 0.2 : 1;
+  const sx = b.L * 0.005 * f, sy = b.B2 * 0.02 * f, sz = b.Hmax * 0.015 * f;
+  const steffy = state.lineOpts.convention === 'steffy';
+  const h = key === 'arrowright' ? 1 : key === 'arrowleft' ? -1 : 0, v = key === 'arrowup' ? 1 : key === 'arrowdown' ? -1 : 0;
+  let d = [0, 0, 0];
+  switch (viewer.view) {
+    case 'profile': d = [h * sx * (steffy ? -1 : 1), 0, v * sz]; break;
+    case 'plan': d = [h * sx * (steffy ? -1 : 1), v * sy * (steffy ? 1 : -1), 0]; break;
+    case 'body': d = [0, -h * sy, v * sz]; break;
+    default: d = [0, h * sy, v * sz];
+  }
+  if (performance.now() - lastNudge > 700) pushUndo();
+  lastNudge = performance.now();
+  viewer.nudge(...d);
+  schedule(true); showSel();
+}
+
 // ------------------------------------------------------------------ game API
 function setCam(v) {
   $$('.hud-views button').forEach((x) => x.classList.toggle('on', x.dataset.cam === v));
@@ -342,6 +363,7 @@ const api = {
   whenHydro: (f) => { hydroWaiters.push(f); schedule(true); },
   clearUndo: () => { undo.length = 0; redo.length = 0; updateUndoButtons(); },
   setCam, setSurface, setView: (v) => setView(v),
+  setMode: (m) => $(`#sel-mode button[data-mode="${m}"]`).click(),
   drawnBy: () => $('#d-by').value,
   dateString: () => state.date,
   saveState: () => ({ cage: JSON.stringify(state.cage), level: state.level, lineOpts: { ...state.lineOpts }, name: $('#d-name').value, surface: viewer.surfaceMode,
@@ -443,10 +465,11 @@ function init() {
     if (document.body.classList.contains('playing') && (k === 'tab' || ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) && document.body.classList.contains('play-quiz'))) { e.preventDefault(); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? doUndo(redo, undo) : doUndo(undo, redo); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); doUndo(redo, undo); return; }
-    if (k === 'escape') { help.hidden = true; viewer.select(null); }
+    if (k === 'escape') { help.hidden = true; $('#welcome').hidden = true; viewer.select(null); }
     if (k === 'f') viewer.frame();
     if (k === 'h' || k === '?') help.hidden = !help.hidden;
     if (k === 'tab') { e.preventDefault(); setView(state.view === '3d' ? '2d' : '3d'); }
+    if (k.startsWith('arrow') && viewer.sel && state.view === '3d') { e.preventDefault(); nudge(k, e.shiftKey); return; }
     const modes = { 1: 'point', 2: 'station', 3: 'longitudinal' };
     if (modes[e.key]) $(`#sel-mode button[data-mode="${modes[e.key]}"]`).click();
     if (k === 'w') viewer.tc.setMode('translate');
@@ -455,7 +478,7 @@ function init() {
   syncControls();
   loadPreset('clipper', false);
   undo.length = 0; updateUndoButtons();
-  if (!localStorageSafe('shiplines.seenHelp')) { help.hidden = false; localStorageSafe('shiplines.seenHelp', '1'); }
+  $('#welcome').hidden = false;
   initGame(api);
   window.__shiplines = { state, viewer, api, get lines() { return lines; }, get hydro() { return hydro; }, setView, renderSheet, loadPreset };
 }

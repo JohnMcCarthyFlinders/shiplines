@@ -40,14 +40,18 @@ python3 -m http.server 8000
 
 ## Play mode
 
-**▶ Play** runs an optional four-round challenge (100 points):
+The opening screen offers two choices. **Test your skills** starts the challenge, and **Explore ship lines** goes straight to the tool. The ▶ PLAY button and the gold side-panel card also start the challenge.
 
-1. **Know your lines (20).** A line flashes on the hull. Say whether it is a station, waterline, buttock or diagonal, and which plan shows its true shape.
+An old shipwright introduces each round. The challenge has four rounds and 100 points:
+
+1. **Know your lines (20).** A line flashes on the hull. Say whether it is a station, waterline, buttock or diagonal, and which plan shows its true shape. A reference lines drawing of the same hull is beside the questions; after each answer the line is shown in red in all three plans.
 2. **Steffy’s labels (15).** A section flashes in profile. Give its Steffy label: A, B, C forward or 1, 2, 3 aft of midships.
-3. **Shape to spec (30).** Reshape the practice hull to a target block coefficient and beam. This hull becomes the student's certificate drawing.
-4. **Fair the hull (35).** Three handles have been knocked out of place. Use zebra shading and a live fairness meter (control-cage curvature energy) to fair it again, keeping the hull's dimensions and displacement.
+3. **Match the section (30).** In the end (body) view, drag four handles of the midship control section until the hull’s midship section lies on the owner’s dashed target. Live match %, C<sub>m</sub> and C<sub>b</sub> are shown. This hull becomes the student's certificate drawing.
+4. **Fair the hull (35).** Four handles are shown: three were knocked out of line and one is sound. Fair the hull using zebra shading and a live fairness meter (control-cage curvature energy), keeping its dimensions and displacement.
 
-Grades follow the Flinders scale: High Distinction 85+, Distinction 75+, Credit 65+, Pass 50+. At the end, **View certificate** opens the student's own lines plan with a *Certificate of Proficiency* cartouche and seal. It shows their name, score, grade and round breakdown, and can be printed or exported like any sheet.
+Grades follow the Flinders scale: High Distinction 85+, Distinction 75+, Credit 65+, Pass 50+. The defaults are *John McCarthy* and *The Pie Floater*; students change them on the start screen. **View certificate** opens the student's own lines plan with a *Certificate of Proficiency* cartouche and seal.
+
+**Handles:** drag a handle directly. It moves in the plane of the current view, so the profile, plan and end views give clean 2-D moves. Clicking a handle gives the arrow gizmo, and the arrow keys nudge the selection (Shift = fine).
 
 ## How the geometry works
 

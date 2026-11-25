@@ -243,6 +243,37 @@ body.playing .hud-title, body.playing .hud-tip { display: none; }
 .r-rows .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
 #d-cert.on { border-color: var(--gold); color: var(--gold); }
 
+/* shipwright, welcome, reference card */
+.wright { width: 96px; height: 96px; flex: none; filter: drop-shadow(0 0 10px rgba(255, 211, 0, .18)); }
+.wright-say { display: flex; gap: 14px; align-items: flex-start; margin: 4px 0 12px; }
+.wright-say blockquote { margin: 0; position: relative; background: #f4ecd8; color: #2a241c; padding: 12px 14px 10px; font: 400 15.5px/1.45 Georgia, 'Times New Roman', serif; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.35); text-align: left; }
+.wright-say blockquote::before { content: ''; position: absolute; left: -9px; top: 26px; border: 9px solid transparent; border-left: 0; border-right-color: #f4ecd8; }
+.wright-say cite { display: block; margin-top: 6px; font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: #7a5a2a; font-style: normal; }
+.game .wright { width: 84px; height: 84px; }
+.r-say { margin: 0 0 14px; }
+.welcome-box { width: min(820px, 94vw); text-align: center; padding: 26px 32px 22px; }
+.w-brand span { display: block; font: 600 11.5px var(--mono); letter-spacing: 2.5px; color: #a9c4e0; }
+.w-brand strong { display: block; font: 700 46px/1 var(--ui); letter-spacing: 10px; color: #fff; margin: 6px 0 2px; text-shadow: 0 0 24px rgba(61, 232, 255, .25); }
+.w-brand em { font-style: normal; color: var(--gold); letter-spacing: 1.5px; }
+.welcome-box .w-say { margin: 20px auto 18px; max-width: 620px; }
+.w-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.w-card { text-align: left; padding: 16px 18px; cursor: pointer; border: 1px solid rgba(61,232,255,.35); background: rgba(0, 47, 96, .55); color: #e6f0fa; transition: .15s; }
+.w-card i { font-style: normal; font-size: 26px; display: block; margin-bottom: 4px; }
+.w-card b { display: block; font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; }
+.w-card small { display: block; font-size: 14px; color: #b9cde2; line-height: 1.4; }
+.w-test { background: linear-gradient(120deg, var(--gold), #ffe466); color: var(--navy); border: 0; box-shadow: 0 0 24px rgba(255,211,0,.25); }
+.w-test small { color: #4a3d00; }
+.w-card:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.w-explore:hover { border-color: var(--cyan); }
+.w-guide { margin-top: 14px; background: transparent; border: 0; color: var(--muted); cursor: pointer; text-decoration: underline; font-size: 14px; }
+.game-ref { position: absolute; right: 26px; bottom: 82px; width: min(52%, 640px); background: rgba(0, 22, 46, .92); border: 1px solid rgba(61,232,255,.35); padding: 8px; z-index: 3; }
+.gr-head { font: 600 11px var(--mono); letter-spacing: 1.5px; color: var(--cyan); margin: 0 0 6px 2px; display: flex; justify-content: space-between; gap: 10px; }
+.gr-note { color: #b9cde2; letter-spacing: .5px; } .gr-note b { color: #ff6b6b; }
+.gr-svg svg { display: block; width: 100%; height: auto; max-height: 34vh; background: #fbf7ec; }
+.g-text .gold { color: var(--gold); }
+body.play-edit #sel-mode { opacity: .35; pointer-events: none; }
+body.playing .hud-data { top: 26px; }
+
 @media (max-width: 900px) {
   .brand-sub span, .brand-sub em, .brand-sub .byline { display: none; }
   .panel { width: 270px; }

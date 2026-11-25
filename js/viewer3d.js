@@ -9,7 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=4';
+import { isLocked } from './presets.js?v=5';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -147,14 +147,63 @@ export class Viewer3D {
     });
   }
 
+  /** Shift the rendered picture sideways by px (keeps the hull clear of side panels). */
+  setScreenShift(px) { this.shiftX = px || 0; this._fitOrtho(); this._applyShift(); }
+  _applyShift() {
+    const w = this.el.clientWidth || 1, h = this.el.clientHeight || 1;
+    for (const cam of [this.persp, this.ortho]) {
+      if (this.shiftX) cam.setViewOffset(w, h, -this.shiftX, 0, w, h); else cam.clearViewOffset();
+    }
+  }
+
   activeOrbit() { return this.camera === this.persp ? this.orbit : this.orbitO; }
 
   _initEvents() {
     const dom = this.renderer.domElement;
     this.ray = new THREE.Raycaster();
     let down = null;
-    dom.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+    const ndc = (e) => { const r = dom.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
+    const hitPlane = (e, plane) => { this.ray.setFromCamera(ndc(e), this.camera); const v = new THREE.Vector3(); return this.ray.ray.intersectPlane(plane, v) ? v : null; };
+    dom.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY };
+      if (e.button !== 0 || this.tc.dragging || this.tc.axis) return;
+      const h = this._pick(e);
+      if (!h) return;
+      // direct drag: the handle follows the pointer in the plane facing the camera
+      // (in the profile, plan and end views this is exactly that view's plane)
+      if (!this.sel || !this._isSel(h)) this.select(h.userData.i, h.userData.j);
+      const n = new THREE.Vector3(); this.camera.getWorldDirection(n);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.position);
+      const start = hitPlane(e, plane);
+      if (!start) return;
+      this._dd = { plane, start, startPts: this.sel.members.map(([i, j]) => ({ ...this.cage.pts[i][j] })), moved: false };
+      this.activeOrbit().enabled = false;
+      dom.setPointerCapture(e.pointerId);
+    });
+    dom.addEventListener('pointermove', (e) => {
+      if (this._dd) {
+        const p = hitPlane(e, this._dd.plane); if (!p) return;
+        if (!this._dd.moved) { this._dd.moved = true; this.hooks.onEdit?.('start'); }
+        this._applyDelta(p.sub(this._dd.start), this._dd.startPts);
+        this.hooks.onEdit?.('drag');
+        return;
+      }
+      if (this.tc.dragging) return;
+      const h = this._pick(e);
+      dom.style.cursor = h ? 'grab' : '';
+      if (h !== this._hover) {
+        if (this._hover) this._hover.userData.hover = false;
+        if (h) h.userData.hover = true;
+        this._hover = h;
+      }
+    });
     dom.addEventListener('pointerup', (e) => {
+      if (this._dd) {
+        const moved = this._dd.moved; this._dd = null;
+        this.activeOrbit().enabled = true;
+        if (moved) this.hooks.onEdit?.('end');
+        down = null; return;
+      }
       if (!down || this.tc.dragging) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
@@ -163,26 +212,61 @@ export class Viewer3D {
       if (h) this.select(h.userData.i, h.userData.j);
       else if (!this.tc.axis) this.select(null);
     });
-    dom.addEventListener('pointermove', (e) => {
-      if (this.tc.dragging) return;
-      const h = this._pick(e);
-      dom.style.cursor = h ? 'pointer' : '';
-      if (h !== this._hover) {
-        if (this._hover) this._hover.userData.hover = false;
-        if (h) h.userData.hover = true;
-        this._hover = h;
-      }
-    });
     new ResizeObserver(() => this.resize()).observe(this.el);
     this.resize();
   }
 
+  // apply a three.js-space delta to the selected handles, honouring centreplane locks
+  _applyDelta(d, startPts) {
+    this.sel.members.forEach(([i, j], k) => {
+      const p0 = startPts[k], p = this.cage.pts[i][j];
+      p.x = p0.x + d.x; p.z = p0.z + d.y;
+      p.y = isLocked(this.cage, i, j) ? 0 : Math.max(0, p0.y + d.z);
+    });
+    this.updateCage();
+  }
+
+  /** Nudge the selection by a ship-space delta (used by the arrow keys). */
+  nudge(dx, dy, dz) {
+    if (!this.sel) return false;
+    const startPts = this.sel.members.map(([i, j]) => ({ ...this.cage.pts[i][j] }));
+    this._applyDelta(new THREE.Vector3(dx, dz, dy), startPts);
+    return true;
+  }
+
+  /** Limit which handles are shown and editable: an array of [i, j], or null for all. */
+  setEditable(list) {
+    this.editable = list ? new Set(list.map(([i, j]) => `${i},${j}`)) : null;
+    if (this.sel && this.editable && !this.editable.has(`${this.sel.i},${this.sel.j}`)) this.select(null);
+    if (this.cage) this.updateCage();
+  }
+
+  /** Dashed target curve(s) for matching exercises (relative heights, starboard). */
+  setGhost(polys) {
+    if (this.ghost) { this.root.remove(this.ghost); this.ghost.geometry.dispose(); this.ghost = null; }
+    if (!polys || !this.lines) return;
+    const pos = [];
+    for (const l of polys) for (const mir of [1, -1]) for (let k = 1; k < l.length; k++) {
+      const a = S2T(l[k - 1][0], mir * l[k - 1][1], l[k - 1][2] + this.lines.bounds.z0, this.o);
+      const b = S2T(l[k][0], mir * l[k][1], l[k][2] + this.lines.bounds.z0, this.o);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    const g = new LineSegmentsGeometry(); g.setPositions(pos);
+    if (!this.ghostMat) this.ghostMat = new LineMaterial({ color: 0xffd300, linewidth: 4, dashed: true, dashSize: 0.3, gapSize: 0.2, transparent: true, opacity: 0.95, depthTest: false, toneMapped: false });
+    const B = this.lines.bounds.B2 || 1;
+    this.ghostMat.dashSize = B * 0.06; this.ghostMat.gapSize = B * 0.035;
+    this.ghostMat.resolution.set(this.el.clientWidth, this.el.clientHeight);
+    this.ghost = new LineSegments2(g, this.ghostMat); this.ghost.computeLineDistances(); this.ghost.renderOrder = 29;
+    this.root.add(this.ghost);
+  }
+
   _pick(e) {
     if (!this.showCage || this.editLocked || !this.handles.length) return null;
+    const pickable = this.handles.filter((h) => h.visible);
     const r = this.renderer.domElement.getBoundingClientRect();
     const m = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(m, this.camera);
-    const hits = this.ray.intersectObjects(this.handles, false);
+    const hits = this.ray.intersectObjects(pickable, false);
     return hits.length ? hits[0].object : null;
   }
 
@@ -193,6 +277,7 @@ export class Viewer3D {
     this.css.setSize(w, h);
     this.persp.aspect = w / h; this.persp.updateProjectionMatrix();
     this._fitOrtho();
+    this._applyShift();
     for (const m of this._lineMats()) m.resolution.set(w, h);
   }
 
@@ -231,7 +316,8 @@ export class Viewer3D {
       h.position.copy(S2T(p.x, p.y, p.z, this.o));
       const sel = this._isSel(h), prim = this.sel && this.sel.i === h.userData.i && this.sel.j === h.userData.j;
       h.material.color.setHex(prim ? HANDLE.selected : sel ? HANDLE.group : h.userData.locked ? HANDLE.locked : HANDLE.free);
-      h.userData.k = sel ? 1.6 : 1;
+      h.userData.k = sel ? 1.6 : this.editable ? 1.5 : 1;
+      h.visible = !this.editable || this.editable.has(`${h.userData.i},${h.userData.j}`);
     }
     const pos = [];
     const P = (i, j) => { const p = c.pts[i][j]; const v = S2T(p.x, p.y, p.z, this.o); return [v.x, v.y, v.z]; };
@@ -357,7 +443,7 @@ export class Viewer3D {
     this._mats[k].resolution.set(this.el.clientWidth, this.el.clientHeight);
     return this._mats[k];
   }
-  _lineMats() { return [...Object.values(this._mats || {}), this.cageMat, this.hlMat].filter(Boolean); }
+  _lineMats() { return [...Object.values(this._mats || {}), this.cageMat, this.hlMat, this.ghostMat].filter(Boolean); }
 
   _placeEnvironment(b) {
     const size = Math.max(b.L, b.B2 * 2) * 3;
@@ -458,6 +544,7 @@ export class Viewer3D {
     const w = this.el.clientWidth || 1, h = this.el.clientHeight || 1, a = w / h;
     let span = this.view === 'body' ? Math.max(b.B2 * 2.6, b.Hmax * 1.4 * a) : b.L * 1.25;
     if (this.view === 'body') span = Math.max(span, b.Hmax * 1.5 * a);
+    span *= 1 + (1.8 * (this.shiftX || 0)) / w; // leave room when the picture is shifted aside
     const hh = span / a / 2;
     Object.assign(this.ortho, { left: -span / 2, right: span / 2, top: hh, bottom: -hh });
     this.ortho.updateProjectionMatrix();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shiplines · Flinders University Maritime Archaeology</title>
 <meta name="description" content="Interactive teaching tool for ship hull lines: shape a subdivision-surface hull and draw its sheer, half-breadth and body plans.">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -56,7 +56,7 @@
         <button data-mode="longitudinal" title="Move a fore-and-aft row of points (3)">Fore–aft row</button>
       </div>
       <div class="selinfo" id="selinfo">
-        <p class="hint">Click an <b class="c-handle">orange handle</b> on the cage, then drag the gizmo arrows. <b class="c-locked">Red</b> handles sit on the centreplane (keel, stem, sternpost) and only move in height and length.</p>
+        <p class="hint"><b>Drag</b> an <b class="c-handle">orange handle</b> directly (it moves in the plane of the view), or click it and use the gizmo arrows or arrow keys. <b class="c-locked">Red</b> handles sit on the centreplane (keel, stem, sternpost) and only move in height and length.</p>
       </div>
       <div class="row btns">
         <button id="btn-undo" title="Undo (Ctrl+Z)">↶ Undo</button>
@@ -146,6 +146,7 @@
         <button data-cam="frame" title="Re-frame (F)">⌖</button>
       </div>
       <div class="game" id="game" hidden></div>
+      <div class="game-ref" id="game-ref" hidden><div class="gr-head">REFERENCE · LINES DRAWING <span class="gr-note"></span></div><div class="gr-svg"></div></div>
       <div class="hud hud-tip" id="hud-tip">Drag to orbit · right-drag to pan · scroll to zoom · click a handle to edit</div>
     </div>
     <!-- 2D -->
@@ -199,7 +200,7 @@
         <p>The <b>Lines Drawing</b> tab sets out the three plans at a true standard scale on an ISO sheet with a title block and a scale of metres. By default it follows <b>Steffy’s conventions</b>: bow to the left, plans titled Sheer, Body and Half-Breadth, and sections lettered A, B, C… towards the bow and numbered 1, 2, 3… towards the stern from the midship section (⦶). Switch the convention to compare with naval-architecture practice (bow right, stations 0–N).</p>
         <p>The curves in the drawing are run through the computed intersection points like a draughtsman’s batten. Export the sheet as SVG or PNG, and the <b>table of offsets</b> as CSV.</p>
         <h4>Keys</h4>
-        <p><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
+        <p>Drag a handle directly, or click it for the arrow gizmo · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> nudge the selected handle in the current view (<kbd>Shift</kbd> = fine) · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
         <h4>Play</h4>
         <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, shape a hull to spec and fair a damaged hull. You finish with a certificate drawn on your own lines plan.</p>
         <h4>Exercise ideas</h4>
@@ -214,6 +215,18 @@
   </div>
 </div>
 
+<div class="modal" id="welcome" hidden>
+  <div class="modal-box welcome-box">
+    <div class="w-brand"><span>FLINDERS UNIVERSITY · MARITIME ARCHAEOLOGY PROGRAM</span><strong>SHIPLINES</strong><em>hull lines lab · made by John McCarthy</em></div>
+    <div class="w-say wright-say"></div>
+    <div class="w-choices">
+      <button class="w-card w-test" id="w-test"><i>⚓</i><b>Test your skills</b><small>Four rounds with the old shipwright: read the lines, name the sections, shape a hull and fair it. Earn a certificate on your own lines plan.</small></button>
+      <button class="w-card w-explore" id="w-explore"><i>✎</i><b>Explore ship lines</b><small>Shape hulls freely, watch the stations, waterlines and buttocks, and draw a traditional lines plan.</small></button>
+    </div>
+    <button class="w-guide" id="w-guide">or read the guide first</button>
+  </div>
+</div>
+
 <div class="modal" id="play-intro" hidden>
   <div class="modal-box play-box">
     <h2>▶ Shiplines Challenge</h2>
@@ -225,8 +238,8 @@
       <li><b>Fair the hull</b> <span>35 pts</span><small>Find and fix three bumps using the zebra stripes and fairness meter.</small></li>
     </ol>
     <div class="play-fields">
-      <label>Your name <input id="play-student" type="text" maxlength="40" placeholder="as it should appear on the certificate"></label>
-      <label>Name your vessel <input id="play-vessel" type="text" maxlength="30" placeholder="e.g. Investigator"></label>
+      <label>Your name <input id="play-student" type="text" maxlength="40" value="John McCarthy" placeholder="as it should appear on the certificate"></label>
+      <label>Name your vessel <input id="play-vessel" type="text" maxlength="30" value="The Pie Floater"></label>
     </div>
     <p class="hint">Grades: High Distinction 85+ · Distinction 75+ · Credit 65+ · Pass 50+</p>
     <div class="play-actions"><button class="ghost" id="play-cancel">Cancel</button><button class="g-go" id="play-start">Start ▸</button></div>
@@ -235,6 +248,7 @@
 
 <div class="modal" id="play-results" hidden>
   <div class="modal-box play-box results">
+    <div class="r-say wright-say"></div>
     <span class="r-kicker">CHALLENGE COMPLETE</span>
     <div class="r-name"></div>
     <div class="r-score"></div>
@@ -249,6 +263,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script type="module" src="js/main.js?v=4"></script>
+<script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

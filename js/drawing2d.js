@@ -88,7 +88,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   };
   const best = (fit) => { for (const d of SCALES) if (fit(1000 / d).ok) return d; return SCALES[SCALES.length - 1]; };
   const dA = best(fitBeside), dB = best(fitBelow);
-  const layout = o.layout === 'beside' ? 'beside' : o.layout === 'below' ? 'below' : (dB < dA ? 'below' : 'beside');
+  const layout = o.plansOnly || o.layout === 'beside' ? 'beside' : o.layout === 'below' ? 'below' : (dB < dA ? 'below' : 'beside');
   const denom = layout === 'below' ? dB : dA;
   const s = 1000 / denom;               // paper mm per metre
   const fit = layout === 'below' ? fitBelow(s) : fitBeside(s);
@@ -101,7 +101,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   const limit = layout === 'below' ? area.b : clearsTB ? area.b : tbTop;
   const spare = Math.max(0, limit - (area.t + fit.h));
   const nGaps = layout === 'below' ? 3 : 2;
-  const vg = Math.min(spare / (nGaps + 1), 22);
+  const vg = o.plansOnly ? 0 : Math.min(spare / (nGaps + 1), 22);
 
   const X0 = ox + ml;                    // sheer / half-breadth plan left edge
   const Xs = (x) => (steffy ? X0 + (b.xmax - x) * s : X0 + (x - b.xmin) * s);
@@ -135,15 +135,21 @@ export function renderDrawing(lines, meta, opts = {}) {
   };
   const stLabel = (st, x, y) => (st.isMid ? amidships(x, y - 0.9) : T(x, y, st.label, 2.8));
 
+  // optional red highlight of one line (used by the Play quiz's reference drawing)
+  const HC = '#d0101e';
+  const isH = (type, it) => !!(o.highlight && o.highlight.type === type && o.highlight.k === it.k);
+  const hw = (type, it, w) => (isH(type, it) ? Math.max(w * 2.6, 0.6) : w);
+  const hc = (type, it, c) => (isH(type, it) ? HC : c);
+
   // ================================================================ SHEER PLAN
   const xL = Xs(steffy ? b.xmax : b.xmin), xR = Xs(steffy ? b.xmin : b.xmax);
   const topZ = Hm * 1.0;
   // grid
-  for (const st of lines.stations) Ln(Xs(st.x), Ybase, Xs(st.x), Yz(topZ) - 1.5, st.isMid ? W_REF : W_GRID);
-  for (const w of lines.waterlines) Ln(xL, Yz(w.z), xR, Yz(w.z), w.isLWL ? W_REF * 1.3 : W_GRID, w.isLWL ? col('waterlines') : ink);
+  for (const st of lines.stations) Ln(Xs(st.x), Ybase, Xs(st.x), Yz(topZ) - 1.5, hw('station', st, st.isMid ? W_REF : W_GRID), hc('station', st, ink));
+  for (const w of lines.waterlines) Ln(xL, Yz(w.z), xR, Yz(w.z), hw('waterline', w, w.isLWL ? W_REF * 1.3 : W_GRID), hc('waterline', w, w.isLWL ? col('waterlines') : ink));
   Ln(xL - 4, Ybase, xR + 4, Ybase, W_REF); // baseline
   // buttocks (x,z)
-  for (const bt of lines.buttocks) for (const l of bt.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yz(q[2])])), W_HULL, col('buttocks'));
+  for (const bt of lines.buttocks) for (const l of bt.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yz(q[2])])), hw('buttock', bt, W_HULL), hc('buttock', bt, col('buttocks')));
   // profile
   const ol = lines.outline;
   for (const k of ['keel', 'stem', 'stern', 'sheer']) P(smoothPath(ol[k].map((q) => [Xs(q[0]), Yz(q[2])])), W_OUT);
@@ -159,13 +165,13 @@ export function renderDrawing(lines, meta, opts = {}) {
   T((xL + xR) / 2, Ybase + 8, 'SHEER PLAN', 4.2, 'middle', 'title');
 
   // ================================================================ HALF-BREADTH PLAN
-  for (const st of lines.stations) Ln(Xs(st.x), Yc - B2 * s - 1, Xs(st.x), Yc + dmax * s + 1, st.isMid ? W_REF : W_GRID);
+  for (const st of lines.stations) Ln(Xs(st.x), Yc - B2 * s - 1, Xs(st.x), Yc + dmax * s + 1, hw('station', st, st.isMid ? W_REF : W_GRID), hc('station', st, ink));
   Ln(xL - 4, Yc, xR + 4, Yc, W_REF, ink, DASHDOT); // centreline
-  for (const bt of lines.buttocks) Ln(xL, Yc - bt.y * s, xR, Yc - bt.y * s, W_GRID);
-  for (const w of lines.waterlines) for (const l of w.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yc - q[1] * s])), w.isLWL ? W_HULL * 1.5 : W_HULL, col('waterlines'));
+  for (const bt of lines.buttocks) Ln(xL, Yc - bt.y * s, xR, Yc - bt.y * s, hw('buttock', bt, W_GRID), hc('buttock', bt, ink));
+  for (const w of lines.waterlines) for (const l of w.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yc - q[1] * s])), hw('waterline', w, w.isLWL ? W_HULL * 1.5 : W_HULL), hc('waterline', w, col('waterlines')));
   P(smoothPath(ol.sheer.map((q) => [Xs(q[0]), Yc - q[1] * s])), W_OUT);
   P(smoothPath(ol.stern.map((q) => [Xs(q[0]), Yc - q[1] * s])), W_OUT);
-  for (const d of lines.diagonals) for (const l of d.developed) P(smoothPath(l.map((q) => [Xs(q[0]), Yc + q[1] * s])), W_HULL, col('diagonals'));
+  for (const d of lines.diagonals) for (const l of d.developed) P(smoothPath(l.map((q) => [Xs(q[0]), Yc + q[1] * s])), hw('diagonal', d, W_HULL), hc('diagonal', d, col('diagonals')));
   // labels
   for (const bt of lines.buttocks) T(xL - 3, Yc - bt.y * s + 0.9, bt.label, 2.1, 'end');
   T(xL - 3, Yc + 0.9, 'CL', 2.1, 'end');
@@ -190,18 +196,18 @@ export function renderDrawing(lines, meta, opts = {}) {
   const bl = Xbc - B2 * s, br = Xbc + B2 * s;
   Ln(Xbc, YbB + 1.5, Xbc, YzB(topZ) - 1.5, W_REF, ink, DASHDOT);
   Ln(bl - 2, YbB, br + 2, YbB, W_REF);
-  for (const w of lines.waterlines) Ln(bl, YzB(w.z), br, YzB(w.z), w.isLWL ? W_REF * 1.3 : W_GRID, w.isLWL ? col('waterlines') : ink);
-  for (const bt of lines.buttocks) for (const side of [-1, 1]) Ln(Xbc + side * bt.y * s, YbB, Xbc + side * bt.y * s, YzB(topZ), W_GRID);
+  for (const w of lines.waterlines) Ln(bl, YzB(w.z), br, YzB(w.z), hw('waterline', w, w.isLWL ? W_REF * 1.3 : W_GRID), hc('waterline', w, w.isLWL ? col('waterlines') : ink));
+  for (const bt of lines.buttocks) for (const side of [-1, 1]) Ln(Xbc + side * bt.y * s, YbB, Xbc + side * bt.y * s, YzB(topZ), hw('buttock', bt, W_GRID), hc('buttock', bt, ink));
   for (const d of lines.diagonals) for (const side of [-1, 1]) {
     // clip the diagonal to the body plan rectangle
     const t = Math.min(1, (B2 * 1.0) / Math.max(1e-9, d.b.y - d.a.y));
     const ey = d.a.y + (d.b.y - d.a.y) * t, ez = d.a.z + (d.b.z - d.a.z) * t;
-    Ln(Xbc, YzB(d.a.z), Xbc + side * ey * s, YzB(ez), W_GRID * 1.4, col('diagonals'), 'stroke-dasharray="2.2 0.9"');
+    Ln(Xbc, YzB(d.a.z), Xbc + side * ey * s, YzB(ez), hw('diagonal', d, W_GRID * 1.4), hc('diagonal', d, col('diagonals')), isH('diagonal', d) ? '' : 'stroke-dasharray="2.2 0.9"');
     T(Xbc + side * ey * s + side * 1.6, YzB(ez) + 0.9, d.label, 2.0, side > 0 ? 'start' : 'end');
   }
   for (const st of lines.stations) {
     const sides = st.isMid ? [true, false] : [st.fwd];
-    for (const fwd of sides) for (const l of st.polylines) P(smoothPath(l.map((q) => [Xb(q[1], fwd), YzB(q[2])])), st.isMid ? W_HULL * 1.25 : W_HULL, col('stations'));
+    for (const fwd of sides) for (const l of st.polylines) P(smoothPath(l.map((q) => [Xb(q[1], fwd), YzB(q[2])])), hw('station', st, st.isMid ? W_HULL * 1.25 : W_HULL), hc('station', st, col('stations')));
     if (!st.isMid) {
       const l = st.polylines[0]; if (!l) continue;
       const top = l.reduce((m, p) => (p[2] > m[2] ? p : m), l[0]);
@@ -221,6 +227,12 @@ export function renderDrawing(lines, meta, opts = {}) {
   T(Xbc + fwdSide * B2 * s * 0.5, YbB + 6.4, 'FORE BODY', 2.2);
   T(Xbc - fwdSide * B2 * s * 0.5, YbB + 6.4, 'AFTER BODY', 2.2);
   T(Xbc, YbB + 11, 'BODY PLAN', 4.2, 'middle', 'title');
+
+  if (o.plansOnly) {
+    // just the three plans, cropped, on clean paper (reference diagram)
+    const vb = [ox - 2, area.t - 2, fit.w + 4, fit.h + 2];
+    return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(f2).join(' ')}" class="lines-sheet" preserveAspectRatio="xMidYMid meet"><style>${SHEET_CSS}</style><rect x="${f2(vb[0])}" y="${f2(vb[1])}" width="${f2(vb[2])}" height="${f2(vb[3])}" fill="#fbf7ec"/>${out.join('')}</svg>`, scale: denom, layout };
+  }
 
   // ================================================================ TITLE BLOCK, SCALE, FRAME
   const tb = { x: fr.r - TB.w, y: fr.b - TB.h, w: TB.w, h: TB.h };
