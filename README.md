@@ -29,7 +29,7 @@ python3 -m http.server 8000
 
 | Area | Features |
 |---|---|
-| **Presets** | Cargo ship (full, boxy), clipper ship (sharp, hollow bow, rising floors), sleek & sharp V-hull, 18th-century warship (wide, tumblehome, high stern), and a simple practice hull |
+| **Presets** | Cargo ship (full, boxy); clipper ship after the *Flying Fish* lines (long hollow entrance and run, full deck line, counter stern); canoe; 18th-century warship in the manner of HMS *Victory* (low, broad, bluff bow, tumblehome, broad square stern); and a simple practice hull |
 | **Shaping** | Click a handle and drag the gizmo. *Point*, *Section* and *Fore–aft row* selection modes, typed x/y/z coordinates, and undo/redo. Keel, stem and sternpost handles are locked to the centreplane. |
 | **Surface** | Catmull–Clark levels 0–4, with hologram, solid and **zebra** (reflection-stripe fairness check) shading. Control cage, wireframe, mirrored port side and LWL plane can each be toggled. |
 | **Lines (3D)** | Stations (gold), waterlines (cyan, LWL highlighted), buttock lines (magenta), diagonals (green), and profile and sheer (white). Each has its own colour; all share a common, adjustable thickness. Counts and spacing are adjustable. |
@@ -37,6 +37,17 @@ python3 -m http.server 8000
 | **Hull data** | LOA, beam, depth, LWL draught, volume, displacement (sea water), LCB, and C<sub>b</sub>, C<sub>p</sub>, C<sub>m</sub>, C<sub>wp</sub>, all live |
 | **Lines drawing** | ISO A4–A1 sheet with zone-referenced frame, title block, scale of metres and an automatically chosen standard scale. The body plan goes beside the sheer plan, or below it for long hulls. Aged paper or clean, black or coloured inks, with the student's name and date. |
 | **Export** | Drawing as SVG (fonts embedded) or 150 dpi PNG, or print; table of offsets as CSV; hull as OBJ (Blender/Rhino); design as JSON (re-openable); 3D snapshot as PNG |
+
+## Play mode
+
+**▶ Play** runs an optional four-round challenge (100 points):
+
+1. **Know your lines (20).** A line flashes on the hull. Say whether it is a station, waterline, buttock or diagonal, and which plan shows its true shape.
+2. **Steffy’s labels (15).** A section flashes in profile. Give its Steffy label: A, B, C forward or 1, 2, 3 aft of midships.
+3. **Shape to spec (30).** Reshape the practice hull to a target block coefficient and beam. This hull becomes the student's certificate drawing.
+4. **Fair the hull (35).** Three handles have been knocked out of place. Use zebra shading and a live fairness meter (control-cage curvature energy) to fair it again, keeping the hull's dimensions and displacement.
+
+Grades follow the Flinders scale: High Distinction 85+, Distinction 75+, Credit 65+, Pass 50+. At the end, **View certificate** opens the student's own lines plan with a *Certificate of Proficiency* cartouche and seal. It shows their name, score, grade and round breakdown, and can be printed or exported like any sheet.
 
 ## How the geometry works
 
@@ -70,5 +81,5 @@ The UI uses the Flinders master colours, **Flinders Gold #FFD300** and **Midnigh
 
 ## Credits
 
-Developed for the Maritime Archaeology Program, College of Human Sciences and Culture, Flinders University.
+Made by John McCarthy for the Maritime Archaeology Program, College of Human Sciences and Culture, Flinders University. Created using Claude.
 three.js © three.js authors (MIT). Font licences are in `fonts/licenses/`.

@@ -37,6 +37,10 @@ export class Viewer3D {
     this.showWire = true;
     this.showWater = true;
     this.showLabels = true;
+    this.labelMode = 'all'; // 'all' | 'ends'
+    this.dimmed = false;
+    this.editLocked = false;
+    this.highlightPolys = null;
     this.lineWidth = 2.5;
     this.vis = { stations: true, waterlines: true, buttocks: true, diagonals: true, outline: true };
     this.convention = 'steffy';
@@ -53,7 +57,7 @@ export class Viewer3D {
     const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }));
     r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMappingExposure = 0.92;
     this.el.appendChild(r.domElement);
     this.css = new CSS2DRenderer();
     this.css.domElement.className = 'labels3d';
@@ -109,7 +113,7 @@ export class Viewer3D {
     // post-processing
     this.composer = new EffectComposer(this.renderer);
     this.renderPass = new RenderPass(this.scene, this.camera);
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.35, 0.55);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.14, 0.25, 0.75);
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -174,7 +178,7 @@ export class Viewer3D {
   }
 
   _pick(e) {
-    if (!this.showCage || !this.handles.length) return null;
+    if (!this.showCage || this.editLocked || !this.handles.length) return null;
     const r = this.renderer.domElement.getBoundingClientRect();
     const m = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(m, this.camera);
@@ -312,14 +316,37 @@ export class Viewer3D {
       const o = new CSS2DObject(d); o.position.copy(S2T(x, y, z + b.z0, this.o)); this.labelGroup.add(o);
     };
     if (this.showLabels) {
-      if (this.vis.stations) for (const s of lines.stations) lab(s.label, 'st' + (s.isMid ? ' mid' : ''), s.x, 0, b.Hmax + b.Hmax * 0.09);
-      if (this.vis.waterlines) for (const w of lines.waterlines) lab(w.label, 'wl' + (w.isLWL ? ' lwl' : ''), b.xmin - b.L * 0.035, 0, w.z);
-      if (this.vis.buttocks) for (const t of lines.buttocks) { const l = t.polylines.reduce((m, p) => (p.length > (m ? m.length : 0) ? p : m), null); if (l) { const q = l.reduce((m, p) => (p[0] > m[0] ? p : m), l[0]); lab(t.label, 'bt', q[0] + b.L * 0.012, t.y, q[2]); } }
-      if (this.vis.diagonals) for (const d of lines.diagonals) { const l = d.polylines[0]; if (l) { const q = l.reduce((m, p) => (p[0] < m[0] ? p : m), l[0]); lab(d.label, 'dg', q[0] - b.L * 0.015, q[1], q[2]); } }
+      const all = this.labelMode === 'all';
+      if (all && this.vis.stations) for (const s of lines.stations) lab(s.label, 'st' + (s.isMid ? ' mid' : ''), s.x, 0, b.Hmax + b.Hmax * 0.09);
+      if (all && this.vis.waterlines) for (const w of lines.waterlines) lab(w.label, 'wl' + (w.isLWL ? ' lwl' : ''), b.xmin - b.L * 0.035, 0, w.z);
+      if (all && this.vis.buttocks) for (const t of lines.buttocks) { const l = t.polylines.reduce((m, p) => (p.length > (m ? m.length : 0) ? p : m), null); if (l) { const q = l.reduce((m, p) => (p[0] > m[0] ? p : m), l[0]); lab(t.label, 'bt', q[0] + b.L * 0.012, t.y, q[2]); } }
+      if (all && this.vis.diagonals) for (const d of lines.diagonals) { const l = d.polylines[0]; if (l) { const q = l.reduce((m, p) => (p[0] < m[0] ? p : m), l[0]); lab(d.label, 'dg', q[0] - b.L * 0.015, q[1], q[2]); } }
       lab('BOW', 'end', b.xmax + b.L * 0.06, 0, b.Hmid * 0.5);
       lab('STERN', 'end', b.xmin - b.L * 0.09, 0, b.Hmid * 0.5);
     }
+    for (const m of Object.values(this._mats || {})) m.opacity = this.dimmed ? 0.22 : 1;
+    this._buildHighlight();
     this._placeEnvironment(b);
+  }
+
+  /** Highlight a set of starboard polylines (relative heights, as in `lines`); null clears. */
+  setHighlight(polys) { this.highlightPolys = polys; this._buildHighlight(); }
+  _buildHighlight() {
+    if (this.hl) { this.root.remove(this.hl); this.hl.geometry.dispose(); this.hl = null; }
+    const polys = this.highlightPolys, lines = this.lines;
+    if (!polys || !lines) return;
+    const pos = [];
+    for (const l of polys) for (const mir of [1, -1]) for (let k = 1; k < l.length; k++) {
+      const a = S2T(l[k - 1][0], mir * l[k - 1][1], l[k - 1][2] + lines.bounds.z0, this.o);
+      const b = S2T(l[k][0], mir * l[k][1], l[k][2] + lines.bounds.z0, this.o);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    const g = new LineSegmentsGeometry(); g.setPositions(pos);
+    if (!this.hlMat) this.hlMat = new LineMaterial({ color: 0xffffff, linewidth: 5, transparent: true, depthTest: false, toneMapped: false });
+    this.hlMat.linewidth = Math.max(4, this.lineWidth * 2.2);
+    this.hlMat.resolution.set(this.el.clientWidth, this.el.clientHeight);
+    this.hl = new LineSegments2(g, this.hlMat); this.hl.renderOrder = 30;
+    this.root.add(this.hl);
   }
 
   _lineMat(key, width) {
@@ -330,7 +357,7 @@ export class Viewer3D {
     this._mats[k].resolution.set(this.el.clientWidth, this.el.clientHeight);
     return this._mats[k];
   }
-  _lineMats() { return [...Object.values(this._mats || {}), this.cageMat].filter(Boolean); }
+  _lineMats() { return [...Object.values(this._mats || {}), this.cageMat, this.hlMat].filter(Boolean); }
 
   _placeEnvironment(b) {
     const size = Math.max(b.L, b.B2 * 2) * 3;
@@ -392,7 +419,7 @@ export class Viewer3D {
   }
 
   _applyBloom() {
-    const base = { holo: 0.32, solid: 0.18, zebra: 0.0, off: 0.32 }[this.surfaceMode] ?? 0.32;
+    const base = { holo: 0.14, solid: 0.08, zebra: 0.0, off: 0.12 }[this.surfaceMode] ?? 0.14;
     this.bloom.strength = this.bloomOn === false ? 0 : base;
   }
 
@@ -457,6 +484,7 @@ export class Viewer3D {
       const t = (performance.now() - this.t0) / 1000;
       this.mats.holo.uniforms.uTime.value = t; this.mats.holoMirror.uniforms.uTime.value = t;
       this.water.material.uniforms.uTime.value = t;
+      if (this.hlMat) this.hlMat.opacity = 0.65 + 0.35 * Math.sin(t * 5);
       this.mats.zebra.uniforms.uCam.value.copy(this.camera.position);
       this.activeOrbit().update();
       this._sizeHandles();
@@ -503,8 +531,8 @@ function holoMaterial(alpha) {
         float f = 1.0 - abs(dot(normalize(vN), normalize(vV)));
         float rim = pow(f, 2.2);
         float scan = smoothstep(0.82, 1.0, sin(vW.y * uScan - uTime * 1.6) * 0.5 + 0.5);
-        vec3 col = uBase * 0.6 + uRim * (rim * 0.7 + scan * 0.08);
-        float a = (0.14 + rim * 0.5 + scan * 0.04) * uAlpha;
+        vec3 col = uBase * 0.55 + uRim * (rim * 0.45 + scan * 0.05);
+        float a = (0.14 + rim * 0.38 + scan * 0.03) * uAlpha;
         gl_FragColor = vec4(col, a);
       }`,
   });

@@ -3,6 +3,7 @@ import { gridFromCage, subdivide } from './subdiv.js';
 import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js';
 import { Viewer3D } from './viewer3d.js';
 import { renderDrawing, PAPERS } from './drawing2d.js';
+import { initGame } from './game.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -30,10 +31,15 @@ const viewer = new Viewer3D($('#gl'), {
 
 // ------------------------------------------------------------------ pipeline
 let raf = 0, hydroTimer = 0, drawTimer = 0;
+const hydroWaiters = [];
 function schedule(full = true) {
   if (!raf) raf = requestAnimationFrame(() => { raf = 0; rebuild(); });
   clearTimeout(hydroTimer);
-  hydroTimer = setTimeout(() => { hydro = hydrostatics(grid, lines); renderHud(); if (state.view === '2d') renderSheet(); }, full ? 30 : 160);
+  hydroTimer = setTimeout(() => {
+    hydro = hydrostatics(grid, lines); renderHud(); if (state.view === '2d') renderSheet();
+    const w = hydroWaiters.splice(0); w.forEach((f) => f(hydro, lines));
+    api.onUpdate?.();
+  }, full ? 30 : 160);
 }
 function rebuild() {
   grid = subdivide(gridFromCage(state.cage), state.level);
@@ -66,12 +72,13 @@ function buildPresetButtons() {
     loadPreset(b.dataset.preset);
   });
 }
-function loadPreset(key, keepUndo = true) {
+function loadPreset(key, keepUndo = true, silent = false) {
   state.cage = makePreset(key);
   $('#d-name').value = state.cage.name;
+  hydro = null;
   applyCage(true);
   if (!keepUndo) undo.length = 0;
-  toast(`${PRESETS[key].label} loaded`);
+  if (!silent) toast(`${PRESETS[key].label} loaded`);
 }
 function applyCage(recentre) {
   $$('#presets button').forEach((b) => b.classList.toggle('on', b.dataset.preset === state.cage.preset));
@@ -167,7 +174,7 @@ let lastSheet = null;
 function renderSheet() {
   if (!lines) return;
   if (!hydro) hydro = hydrostatics(grid, lines);
-  const meta = { name: $('#d-name').value || state.cage.name, type: state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, sternClosed: state.cage.sternClosed };
+  const meta = { name: $('#d-name').value || state.cage.name, type: state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, sternClosed: state.cage.sternClosed, certificate: state.certificate && state.showCert ? state.certificate : null };
   const r = renderDrawing(lines, meta, { paper: state.paper, aged: state.aged, inks: state.inks, convention: state.lineOpts.convention, layout: state.layout });
   lastSheet = r;
   const el = $('#sheet');
@@ -318,6 +325,58 @@ function setView(v) {
   else viewer.resize();
 }
 
+// ------------------------------------------------------------------ game API
+function setCam(v) {
+  $$('.hud-views button').forEach((x) => x.classList.toggle('on', x.dataset.cam === v));
+  viewer.setView(v);
+}
+function setSurface(m) {
+  $$('#surf-mode button').forEach((x) => x.classList.toggle('on', x.dataset.surf === m));
+  viewer.setSurfaceMode(m);
+}
+const api = {
+  state, viewer, onUpdate: null,
+  lines: () => lines, hydro: () => hydro,
+  loadPreset: (k, o = {}) => loadPreset(k, false, !!o.silent),
+  refresh: (full) => { viewer.updateCage(); rebuild(); viewer.updateLines(lines); schedule(true); },
+  whenHydro: (f) => { hydroWaiters.push(f); schedule(true); },
+  clearUndo: () => { undo.length = 0; redo.length = 0; updateUndoButtons(); },
+  setCam, setSurface, setView: (v) => setView(v),
+  drawnBy: () => $('#d-by').value,
+  dateString: () => state.date,
+  saveState: () => ({ cage: JSON.stringify(state.cage), level: state.level, lineOpts: { ...state.lineOpts }, name: $('#d-name').value, surface: viewer.surfaceMode,
+    toggles: { showCage: $('#t-cage').checked, showLabels: $('#t-labels').checked } }),
+  restoreState(sv) {
+    state.cage = JSON.parse(sv.cage); state.level = sv.level; Object.assign(state.lineOpts, sv.lineOpts);
+    syncControls(); viewer.setToggles(sv.toggles); setSurface(sv.surface); setCam('persp');
+    applyCage(true); $('#d-name').value = sv.name;
+    api.clearUndo();
+  },
+  loadCage(c, { name, drawnBy }) {
+    state.cage = cloneCage(c); state.cage.name = name;
+    $('#d-name').value = name; $('#d-by').value = drawnBy;
+    viewer.setToggles({ showCage: true, showLabels: true }); setSurface('holo'); setCam('persp');
+    applyCage(true); api.clearUndo();
+  },
+  setCertificate(r) {
+    state.certificate = r; state.showCert = true;
+    $('#d-cert').hidden = false; $('#d-cert').classList.add('on');
+    sheetView.fitted = false;
+  },
+  setLock(on) {
+    if (on) {
+      // the game uses the default line set and Steffy's convention
+      api._prevLineOpts = { ...state.lineOpts };
+      Object.assign(state.lineOpts, LINE_DEFAULTS, { convention: 'steffy' });
+      state.level = 2; syncControls();
+      viewer.convention = 'steffy';
+      setView('3d');
+    }
+    $('#convention').disabled = on;
+    $('#btn-reset').disabled = on;
+  },
+};
+
 function init() {
   buildPresetButtons();
   initSheetPanZoom();
@@ -368,6 +427,7 @@ function init() {
   $('#d-name').addEventListener('change', (e) => { state.cage.name = e.target.value; renderHud(); });
   $('#d-layout').addEventListener('change', (e) => { state.layout = e.target.value; renderSheet(); });
   $('#d-fit').addEventListener('click', fitSheet);
+  $('#d-cert').addEventListener('click', () => { state.showCert = !state.showCert; $('#d-cert').classList.toggle('on', state.showCert); renderSheet(); });
   $('#d-svg').addEventListener('click', async () => download(`${slug()}_lines_${state.paper}.svg`, await sheetSVGStandalone(), 'image/svg+xml'));
   $('#d-png').addEventListener('click', () => exportPNG(150).catch((e) => toast('PNG export failed: ' + e.message)));
   $('#d-print').addEventListener('click', printSheet);
@@ -380,6 +440,7 @@ function init() {
   window.addEventListener('keydown', (e) => {
     if (e.target.matches('input, select, textarea')) return;
     const k = e.key.toLowerCase();
+    if (document.body.classList.contains('playing') && (k === 'tab' || ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) && document.body.classList.contains('play-quiz'))) { e.preventDefault(); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? doUndo(redo, undo) : doUndo(undo, redo); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); doUndo(redo, undo); return; }
     if (k === 'escape') { help.hidden = true; viewer.select(null); }
@@ -395,7 +456,8 @@ function init() {
   loadPreset('clipper', false);
   undo.length = 0; updateUndoButtons();
   if (!localStorageSafe('shiplines.seenHelp')) { help.hidden = false; localStorageSafe('shiplines.seenHelp', '1'); }
-  window.__shiplines = { state, viewer, get lines() { return lines; }, get hydro() { return hydro; }, setView, renderSheet, loadPreset };
+  initGame(api);
+  window.__shiplines = { state, viewer, api, get lines() { return lines; }, get hydro() { return hydro; }, setView, renderSheet, loadPreset };
 }
 function localStorageSafe(k, v) {
   try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; }

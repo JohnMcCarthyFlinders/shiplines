@@ -62,7 +62,9 @@ export function renderDrawing(lines, meta, opts = {}) {
   const area = { l: fr.l + pad, t: fr.t + pad, r: fr.r - pad, b: fr.b - pad };
   const ml = 16, mr = 16, gx = 12, topLab = 9, titleSp = 11, gy = 8, botLab = 7;
 
-  const tbTop = area.b - TB.h - 14; // leave room for the scale bar above the title block
+  const cert = meta.certificate || null;
+  const CERT_H = cert ? 50 : 0;     // certificate cartouche stacked above the scale bar
+  const tbTop = area.b - TB.h - 14 - CERT_H; // leave room for the scale bar above the title block
   const tbLeft = fr.r - TB.w;
   const AW = area.r - area.l, AH = area.b - area.t;
   const hTop = (s) => topLab + Hm * s + titleSp;
@@ -258,7 +260,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   out.push(`<text x="${f2(ix)}" y="${f2(tb.y + 22.8)}" font-size="2.05" text-anchor="middle" class="type" fill="${ink}">PROGRAM</text>`);
   out.push(`<text x="${f2(ix)}" y="${f2(tb.y + 26.4)}" font-size="1.6" text-anchor="middle" class="type" fill="${ink}">College of Human Sciences &amp; Culture</text>`);
   const tx = tb.x + c1 + (tb.w - c1) / 2;
-  out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 8.2)}" font-size="5.6" text-anchor="middle" class="title" fill="${ink}" letter-spacing="0.5">LINES OF THE ${esc((meta.name || 'VESSEL').toUpperCase())}</text>`);
+  out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 8.2)}" font-size="5.6" text-anchor="middle" class="title" fill="${ink}" letter-spacing="0.5">LINES OF ${esc((meta.name || 'VESSEL').toUpperCase())}</text>`);
   out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 13.2)}" font-size="2.6" text-anchor="middle" class="type" fill="${ink}">${esc(meta.type || '')}</text>`);
   const dims = `LOA ${b.L.toFixed(2)} m   ·   Beam ${(2 * B2).toFixed(2)} m   ·   Depth ${b.Hmid.toFixed(2)} m`;
   out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 18.2)}" font-size="2.3" text-anchor="middle" class="type" fill="${ink}">${dims}</text>`);
@@ -281,6 +283,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   sb.push(`<text x="${f2(sbx + 5 * uw + 2)}" y="${f2(sby + 1.3)}" font-size="2" class="type" fill="${ink}">METRES</text>`);
   sb.push(`<text x="${f2(sbx + 2.5 * uw)}" y="${f2(sby + 4.4)}" font-size="1.8" text-anchor="middle" class="type" fill="${ink}">SCALE 1:${denom}</text>`);
   out.push(`<g>${sb.join('')}</g>`);
+  if (cert) out.push(certificateBlock(cert, tb.x, tb.y - 12 - CERT_H, tb.w, CERT_H - 3, ink));
 
   // frame with zone references, as on an engineering sheet
   const fz = [];
@@ -310,12 +313,47 @@ export function renderDrawing(lines, meta, opts = {}) {
     : `<rect width="${W}" height="${H}" fill="#fff"/>`;
   const inkFilter = o.aged ? 'filter="url(#sl-ink)"' : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}" class="lines-sheet">
-<title>Lines of the ${esc(meta.name || 'vessel')} — Flinders University Maritime Archaeology Program</title>
+<title>Lines of ${esc(meta.name || 'vessel')} — Flinders University Maritime Archaeology Program</title>
 <defs>${defs}<style>${SHEET_CSS}</style></defs>
 ${bg}
 <g ${inkFilter} opacity="${o.aged ? 0.92 : 1}">${fz.join('')}${out.join('\n')}</g>
 </svg>`;
   return { svg, scale: denom, paper: o.paper, size: [W, H], layout };
+}
+
+function certificateBlock(c, x, y, w, h, ink) {
+  const red = '#8e1b17';
+  const o = [];
+  o.push(`<rect x="${f2(x)}" y="${f2(y)}" width="${f2(w)}" height="${f2(h)}" fill="none" stroke="${ink}" stroke-width="0.6"/>`);
+  o.push(`<rect x="${f2(x + 1.3)}" y="${f2(y + 1.3)}" width="${f2(w - 2.6)}" height="${f2(h - 2.6)}" fill="none" stroke="${ink}" stroke-width="0.18"/>`);
+  const cx = x + (w - 30) / 2;
+  const t = (yy, txt, size, cls, extra = '') => o.push(`<text x="${f2(cx)}" y="${f2(y + yy)}" font-size="${size}" text-anchor="middle" class="${cls}" fill="${ink}" ${extra}>${esc(txt)}</text>`);
+  t(7.4, 'CERTIFICATE OF PROFICIENCY', 4.3, 'title', 'letter-spacing="0.6"');
+  t(11.6, 'Ship Lines  ·  Maritime Archaeology Program', 2.1, 'type');
+  t(17.4, 'This is to certify that', 2.5, 'hand');
+  t(24.6, c.student || 'Student', 5.4, 'title');
+  o.push(`<line x1="${f2(cx - 48)}" y1="${f2(y + 26.2)}" x2="${f2(cx + 48)}" y2="${f2(y + 26.2)}" stroke="${ink}" stroke-width="0.18"/>`);
+  t(30.6, 'has identified, labelled, shaped and faired the lines of a ship’s hull', 2.3, 'hand');
+  t(36.8, `Score ${c.score} / 100   ·   ${c.grade}`, 3.4, 'title', 'letter-spacing="0.3"');
+  t(41.6, c.breakdown || '', 1.85, 'type');
+  // wax seal
+  const sx = x + w - 18, sy = y + h / 2 + 1, r = 12;
+  const id = 'seal' + Math.round(sx * 10);
+  o.push(`<g transform="rotate(-8 ${f2(sx)} ${f2(sy)})">
+    <path d="M${f2(sx - r - 1.4)},${f2(sy)} ${[...Array(24)].map((_, k) => { const a = (k / 24) * Math.PI * 2, rr = r + (k % 2 ? 1.6 : 0.6); return `L${f2(sx + rr * Math.cos(a))},${f2(sy + rr * Math.sin(a))}`; }).join(' ')}Z" fill="${red}" opacity="0.92"/>
+    <circle cx="${f2(sx)}" cy="${f2(sy)}" r="${r - 1.5}" fill="none" stroke="#e8c9a0" stroke-width="0.3" opacity="0.8"/>
+    <circle cx="${f2(sx)}" cy="${f2(sy)}" r="${r - 5.2}" fill="none" stroke="#e8c9a0" stroke-width="0.25" opacity="0.8"/>
+    <path id="${id}" d="M${f2(sx - (r - 3.4))},${f2(sy)} a${r - 3.4},${r - 3.4} 0 1,1 ${f2(2 * (r - 3.4))},0 a${r - 3.4},${r - 3.4} 0 1,1 ${f2(-2 * (r - 3.4))},0" fill="none"/>
+    <text font-size="1.75" class="type" fill="#f3dcb8" letter-spacing="0.25"><textPath href="#${id}">FLINDERS UNIVERSITY · MARITIME ARCHAEOLOGY ·</textPath></text>
+    <g stroke="#f3dcb8" stroke-width="0.45" fill="none" stroke-linecap="round">
+      <circle cx="${f2(sx)}" cy="${f2(sy - 4.6)}" r="0.9"/>
+      <line x1="${f2(sx)}" y1="${f2(sy - 3.7)}" x2="${f2(sx)}" y2="${f2(sy + 4.4)}"/>
+      <line x1="${f2(sx - 2.2)}" y1="${f2(sy - 2.6)}" x2="${f2(sx + 2.2)}" y2="${f2(sy - 2.6)}"/>
+      <path d="M${f2(sx - 3.6)},${f2(sy + 1.6)} Q${f2(sx - 3.2)},${f2(sy + 4.6)} ${f2(sx)},${f2(sy + 4.6)} Q${f2(sx + 3.2)},${f2(sy + 4.6)} ${f2(sx + 3.6)},${f2(sy + 1.6)}"/>
+    </g>
+  </g>`);
+  o.push(`<text x="${f2(sx)}" y="${f2(y + h - 2.6)}" font-size="1.7" text-anchor="middle" class="type" fill="${ink}">${esc(c.date || '')}</text>`);
+  return `<g class="certificate">${o.join('')}</g>`;
 }
 
 const SHEET_CSS = `

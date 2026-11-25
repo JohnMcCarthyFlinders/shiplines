@@ -8,6 +8,11 @@ export const NJ = 7;  // control points per half-section (keel → sheer)
 
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 
+// Optional extras used by the period ships:
+//   runTop/entTop/pRunTop/pEntTop – breadth at the sheer (deck) can stay full while the
+//     underwater body (run/entrance) fines away, as on the Flying Fish or Victory lines;
+//   hollow – wineglass (hollow-garboard) sections towards the ends;
+//   blendTransom – aft deck breadth runs smoothly into the transom (no pinch at the stern).
 export const PRESETS = {
   cargo: {
     label: 'Cargo ship', blurb: 'Full, boxy form: flat floors, hard bilge, long parallel middle body.',
@@ -19,31 +24,33 @@ export const PRESETS = {
     tumble: 0, vName: 'MV Exemplar',
   },
   clipper: {
-    label: 'Clipper ship', blurb: 'Sharp, hollow entrance, rising floors, raked clipper bow (c. 1850–70).',
-    L: 64, B: 11, D: 6.8,
+    label: 'Clipper ship', blurb: 'Extreme clipper after the Flying Fish lines (McKay, 1851): long hollow entrance and run, firm midship section, raked cutwater and counter stern.',
+    L: 63, B: 11.6, D: 6.9,
+    nMid: 2.7, nEnd: 1.7,
+    run: 0.47, entrance: 0.5, pRun: 1.35, pEnt: 1.2,
+    runTop: 0.3, entTop: 0.36, pRunTop: 1.8, pEntTop: 1.55, hollow: 0.7, blendTransom: true,
+    sheerAft: 0.7, sheerFwd: 1.6,
+    stemRake: 4.6, stemShape: 'clipper', sternRake: 3.2, transom: 0.4, cutUp: 0.03,
+    tumble: 0.03, vName: 'Flying Fish',
+  },
+  canoe: {
+    label: 'Canoe', blurb: 'Light, sharp-ended open boat: rising floors, hollow entrance, raked stem.',
+    L: 6.4, B: 1.1, D: 0.68,
     nMid: 1.9, nEnd: 1.25,
     run: 0.48, entrance: 0.52, pRun: 1.5, pEnt: 1.15,
-    sheerAft: 0.8, sheerFwd: 1.4,
-    stemRake: 7.5, stemShape: 'clipper', sternRake: 4.5, transom: 0.28, cutUp: 0.08,
-    tumble: 0.04, vName: 'Clipper',
-  },
-  sleek: {
-    label: 'Sleek & sharp', blurb: 'Light, fine-ended V-bottom hull with a raked stem and wide transom.',
-    L: 18, B: 3.8, D: 2.1,
-    nMid: 1.6, nEnd: 1.15,
-    run: 0.56, entrance: 0.44, pRun: 1.4, pEnt: 1.1,
-    sheerAft: 0.05, sheerFwd: 0.45,
-    stemRake: 1.6, stemShape: 'straight', sternRake: 0.3, transom: 0.7, cutUp: 0.18,
-    tumble: 0, vName: 'Sleek',
+    sheerAft: 0.08, sheerFwd: 0.14,
+    stemRake: 0.75, stemShape: 'clipper', sternRake: 0.45, transom: 0.28, cutUp: 0.08,
+    tumble: 0.04, vName: 'Canoe',
   },
   warship: {
-    label: '18th-c. warship', blurb: 'Wide, round, full-bowed hull with tumblehome and a high stern (74-gun type).',
-    L: 54, B: 14.8, D: 8.6,
-    nMid: 2.7, nEnd: 1.7,
-    run: 0.56, entrance: 0.36, pRun: 1.6, pEnt: 2.2,
-    sheerAft: 2.4, sheerFwd: 1.1,
-    stemRake: 3.2, stemShape: 'forefoot', sternRake: 2.4, transom: 0.52, cutUp: 0.0,
-    tumble: 0.2, vName: 'Warship',
+    label: '18th-c. warship', blurb: 'Low, broad and stable gun platform in the manner of HMS Victory: bluff bow, full round body, tumblehome, fine run under a broad square stern.',
+    L: 57, B: 15.8, D: 7.0,
+    nMid: 2.9, nEnd: 1.7,
+    run: 0.5, entrance: 0.36, pRun: 1.3, pEnt: 1.8,
+    runTop: 0.18, entTop: 0.22, pRunTop: 1.6, pEntTop: 2.4, hollow: 0.7, blendTransom: true,
+    sheerAft: 1.3, sheerFwd: 0.7,
+    stemRake: 2.4, stemShape: 'forefoot', sternRake: 1.6, transom: 0.78, cutUp: 0.0,
+    tumble: 0.16, vName: 'Victory',
   },
   simple: {
     label: 'Simple (start here)', blurb: 'A plain double-ended form to practise fairing from scratch.',
@@ -78,11 +85,16 @@ function sectionPoints(b, k, H, n, count) {
   return out;
 }
 
-function fullness(P, t) {
-  if (t > 1 - P.entrance) return 1 - Math.pow(clamp01((t - (1 - P.entrance)) / P.entrance), P.pEnt);
-  if (t < P.run) return 1 - Math.pow(clamp01((P.run - t) / P.run), P.pRun);
+function profile(t, run, ent, pRun, pEnt, tr = 0) {
+  if (t > 1 - ent) return 1 - Math.pow(clamp01((t - (1 - ent)) / ent), pEnt);
+  if (t < run) return tr + (1 - tr) * (1 - Math.pow(clamp01((run - t) / run), pRun));
   return 1;
 }
+// underwater fullness (drives section shape)
+const fullness = (P, t) => profile(t, P.run, P.entrance, P.pRun, P.pEnt);
+// breadth at the sheer
+const deckFullness = (P, t) => (P.runTop == null ? fullness(P, t)
+  : profile(t, P.runTop, P.entTop, P.pRunTop, P.pEntTop, P.blendTransom ? P.transom : 0));
 
 function stemShift(P, s) {
   switch (P.stemShape) {
@@ -99,10 +111,11 @@ export function makePreset(key) {
   for (let i = 0; i < NI; i++) {
     const t = i / (NI - 1);
     const H = P.D + P.sheerAft * Math.pow(clamp01((0.5 - t) / 0.5), 2) + P.sheerFwd * Math.pow(clamp01((t - 0.5) / 0.5), 2);
-    const f = fullness(P, t);
+    const f = fullness(P, t), fd = deckFullness(P, t);
     const n = P.nEnd + (P.nMid - P.nEnd) * Math.sqrt(f);
+    const hol = (P.hollow || 0) * (1 - f);
     const keelZ = P.cutUp * P.D * Math.pow(clamp01((0.2 - t) / 0.2), 2);
-    let b = (P.B / 2) * f;
+    let b = (P.B / 2) * fd;
     const isStern = i === 0, isStem = i === NI - 1;
     if (isStern) b = (P.B / 2) * P.transom;
     if (isStem) b = 0;
@@ -112,6 +125,7 @@ export function makePreset(key) {
       let [y, z] = sec[j];
       const s = clamp01((z - keelZ) / Math.max(1e-6, H - keelZ));
       if (P.tumble > 0 && s > 0.6) y *= 1 - P.tumble * Math.pow((s - 0.6) / 0.4, 2);
+      if (hol > 0 && !isStern) y *= 1 - hol * Math.pow(1 - s, 2.2); // wineglass / hollow garboards
       let x = P.sternRake + t * Lk;
       // lean the upper parts of the end sections out towards the overhangs
       const wF = Math.pow(clamp01((t - 0.62) / 0.38), 2);

@@ -23,7 +23,7 @@
     </div>
     <div class="brand-sub">
       <span>Maritime Archaeology Program</span>
-      <strong>SHIPLINES <em>· hull lines lab</em></strong>
+      <strong>SHIPLINES <em>· hull lines lab</em> <small class="byline">made by John McCarthy</small></strong>
     </div>
   </div>
   <nav class="tabs" role="tablist">
@@ -31,6 +31,7 @@
     <button class="tab" data-view="2d" role="tab" aria-selected="false"><span class="ico">▤</span> Lines Drawing</button>
   </nav>
   <div class="top-actions">
+    <button class="play" id="btn-play" title="Test yourself: four scored rounds and a certificate">▶ Play</button>
     <button class="ghost" id="btn-help" title="How to use (H)">? Guide</button>
   </div>
 </header>
@@ -123,7 +124,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994).</footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.</footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -140,6 +141,7 @@
         <button data-cam="body">End <small>body</small></button>
         <button data-cam="frame" title="Re-frame (F)">⌖</button>
       </div>
+      <div class="game" id="game" hidden></div>
       <div class="hud hud-tip" id="hud-tip">Drag to orbit · right-drag to pan · scroll to zoom · click a handle to edit</div>
     </div>
     <!-- 2D -->
@@ -155,9 +157,10 @@
         </div>
         <div class="seg small" id="d-inks">
           <button data-inks="mono" class="on">Black ink</button>
-          <button data-inks="colour">Coloured inks</button>
+          <button data-inks="colour">Colour inks</button>
         </div>
         <span class="spacer"></span>
+        <button id="d-cert" hidden title="Show or hide the Play certificate on the sheet">Certificate</button>
         <button id="d-fit" title="Fit sheet">Fit</button>
         <button id="d-svg">SVG</button>
         <button id="d-png">PNG</button>
@@ -193,13 +196,50 @@
         <p>The curves in the drawing are run through the computed intersection points like a draughtsman’s batten. Export the sheet as SVG or PNG, and the <b>table of offsets</b> as CSV.</p>
         <h4>Keys</h4>
         <p><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
+        <h4>Play</h4>
+        <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, shape a hull to spec and fair a damaged hull. You finish with a certificate drawn on your own lines plan.</p>
         <h4>Exercise ideas</h4>
         <ol>
           <li>Fair the <i>Simple</i> hull until the zebra stripes and every waterline run sweetly.</li>
+          <li>Compare the clipper’s hollow entrance with the warship’s bluff bow in the half-breadth plan.</li>
           <li>Turn the cargo ship into a clipper: watch the block coefficient C<sub>b</sub> fall as the entrance sharpens.</li>
           <li>Give the warship more tumblehome and explain how the body plan shows it.</li>
         </ol>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="play-intro" hidden>
+  <div class="modal-box play-box">
+    <h2>▶ Shiplines Challenge</h2>
+    <p>Show that you can read and make a lines plan. Four rounds, 100 points, and a certificate drawn on <i>your own</i> lines plan at the end.</p>
+    <ol class="rounds">
+      <li><b>Know your lines</b> <span>20 pts</span><small>Identify the flashing line and the plan that shows its true shape.</small></li>
+      <li><b>Steffy’s labels</b> <span>15 pts</span><small>Name the flashing section: A, B, C forward and 1, 2, 3 aft of midships.</small></li>
+      <li><b>Shape to spec</b> <span>30 pts</span><small>Reshape a hull to a target block coefficient and beam. This becomes your certificate drawing.</small></li>
+      <li><b>Fair the hull</b> <span>35 pts</span><small>Find and fix three bumps using the zebra stripes and fairness meter.</small></li>
+    </ol>
+    <div class="play-fields">
+      <label>Your name <input id="play-student" type="text" maxlength="40" placeholder="as it should appear on the certificate"></label>
+      <label>Name your vessel <input id="play-vessel" type="text" maxlength="30" placeholder="e.g. Investigator"></label>
+    </div>
+    <p class="hint">Grades: High Distinction 85+ · Distinction 75+ · Credit 65+ · Pass 50+</p>
+    <div class="play-actions"><button class="ghost" id="play-cancel">Cancel</button><button class="g-go" id="play-start">Start ▸</button></div>
+  </div>
+</div>
+
+<div class="modal" id="play-results" hidden>
+  <div class="modal-box play-box results">
+    <span class="r-kicker">CHALLENGE COMPLETE</span>
+    <div class="r-name"></div>
+    <div class="r-score"></div>
+    <div class="r-grade"></div>
+    <div class="r-rows"></div>
+    <div class="play-actions">
+      <button class="ghost" id="play-exit">Exit</button>
+      <button class="ghost" id="play-again">Play again</button>
+      <button class="g-go" id="play-cert">View certificate ▸</button>
     </div>
   </div>
 </div>
