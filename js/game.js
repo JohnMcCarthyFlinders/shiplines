@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked } from './presets.js?v=5';
-import { gridFromCage, subdivide } from './subdiv.js?v=5';
-import { computeLines, hydrostatics } from './lines.js?v=5';
-import { renderDrawing } from './drawing2d.js?v=5';
+import { cloneCage, isLocked } from './presets.js?v=7';
+import { gridFromCage, subdivide } from './subdiv.js?v=7';
+import { computeLines, hydrostatics } from './lines.js?v=7';
+import { renderDrawing } from './drawing2d.js?v=7';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -31,7 +31,7 @@ export const SHIPWRIGHT = {
     'Come in, come in. You’ll be the new hand, so. Before you go near a batten I want to see do you know your lines. I’ll put a light on one of them, and you tell me what it is and which plan shows its true shape. There’s a drawing beside you there if you need it.',
     'Fair play to you. Now, Steffy had a tidy way of naming sections, and I’ll hold you to it: letters forward of the midship section, A, B, C, and numbers aft of it, 1, 2, 3. The bow is to the left, mind. Tell me the name of the section I’m showing you.',
     'Right so. The owner is after changing his mind about the midship section; they always do. The dashed gold curve is what he wants, and the flashing white one is what he has. You’ve four handles to work with: bring the two curves together. And don’t be expecting the handles to sit on the curve. The hull lies inside the cage, so it does.',
-    'Ah, would you look at that. Someone’s after leaning timber against the frames and knocked her out of fair. Three of those four handles are out of line and one is sound. Mind the zebra stripes and the fairness meter, and put her right. The End view is handy for shifting them across the section, and the arrow keys for the fine work.',
+    'Ah, would you look at that. Someone’s after leaning timber against the frames and knocked two of them out of fair. Find the two handles and put them back in line with their neighbours. Watch the zebra stripes: where they kink, she’s lumpy. The End view is handy for shifting them across the section, and the arrow keys for the fine work.',
   ],
   verdict: {
     'High Distinction': 'Well now. That’s a master’s hand, and I don’t say that lightly. You’d have a place in any loft I ever worked in.',
@@ -267,8 +267,9 @@ export function initGame(api) {
     const tSamp = sectionSamples(tMid.polylines);
 
     api.viewer.setEditable(handles);
-    api.viewer.labelMode = 'ends';
-    api.viewer.dimmed = true;
+    api.viewer.labelMode = 'none';
+    api.viewer.setFocus({ rows: [mi] });
+    document.body.classList.add('play-lockview');
     api.refresh();
     await say(2, SHIPWRIGHT.rounds[2]);
 
@@ -292,7 +293,7 @@ export function initGame(api) {
             <div><span>Match</span><b>${Math.round(sc.m * 100)}%</b><em>${sc.m > 0.95 ? 'spot on' : sc.m > 0.75 ? 'close' : 'keep going'}</em>${meter(sc.m)}</div>
             <div><span>Midship coeff. C<sub>m</sub></span><b>${h.Cm.toFixed(3)}</b><em>owner’s design ${tHyd.Cm.toFixed(3)} · C<sub>b</sub> now ${h.Cb.toFixed(3)} → ${tHyd.Cb.toFixed(3)}</em></div>
           </div>
-          <p class="g-tip">You’re looking along the hull from ahead (the <b>End</b> view), as in a body plan, so each handle moves straight across the section. Drag a handle directly; the arrow keys nudge it (hold <kbd>Shift</kbd> for fine moves). ${fuller ? 'A <b>fuller</b> section pushes the bilge out and down.' : 'A <b>finer</b> section lifts the floors into a V and pulls the bilge in.'}</p>
+          <p class="g-tip">You’re looking along the hull from ahead, as in a body plan, so each handle moves straight across the section. The thin orange line is the control section the handles belong to. Drag a handle directly; the arrow keys nudge it (hold <kbd>Shift</kbd> for fine moves). ${fuller ? 'A <b>fuller</b> section pushes the bilge out and down.' : 'A <b>finer</b> section lifts the floors into a V and pulls the bilge in.'}</p>
           <div class="g-foot"><span>Projected: <b>${Math.round(sc.total)}</b> / 30</span><button class="g-go" id="g-submit">Submit ▸</button></div>`);
         panel.querySelector('#g-submit').addEventListener('click', () => {
           api.onUpdate = null;
@@ -301,6 +302,7 @@ export function initGame(api) {
           run.design.type = 'Student design (Shiplines Challenge)';
           run.scores[2] = measure().total;
           api.viewer.setGhost(null); api.viewer.setHighlight(null); api.viewer.setEditable(null);
+          api.viewer.setFocus(null); document.body.classList.remove('play-lockview');
           resolve(run.scores[2]);
         });
       };
@@ -310,49 +312,46 @@ export function initGame(api) {
   }
 
   // ---------------------------------------------------------------- round 4
+  // Two handles are pushed clearly out of line (sideways). Each scores by how close it is
+  // brought back to its fair position: full marks within about a third of the original error.
   async function roundFair() {
-    editView(pick(['clipper', 'warship', 'canoe', 'simple']), 'zebra', 'persp');
+    editView(pick(['clipper', 'warship', 'simple', 'cargo']), 'zebra', 'persp');
     api.viewer.labelMode = 'all'; api.viewer.dimmed = false;
-    const ref0cage = cloneCage(api.state.cage);
-    const Eref = cageEnergy(ref0cage);
-    const [h0, L0] = await new Promise((res) => api.whenHydro((h, L) => res([h, L])));
-    const ref0 = { L: L0.bounds.L, B: 2 * L0.bounds.B2, D: L0.bounds.Hmid, V: h0.V };
-    // knock three interior handles out of fair, and show one sound handle as a decoy
     const c = api.state.cage;
-    const cand = [];
-    for (let i = 2; i < c.ni - 2; i++) for (let j = 2; j < c.nj - 1; j++) if (!isLocked(c, i, j)) cand.push([i, j]);
-    const chosen = shuffle(cand).slice(0, 4);
-    const bumped = chosen.slice(0, 3);
-    for (const [i, j] of bumped) {
-      const p = c.pts[i][j];
-      p.y = Math.max(0.02, p.y + (Math.random() < 0.5 ? -1 : 1) * rnd(0.14, 0.22) * (ref0.B / 2));
-      p.z += (Math.random() < 0.5 ? -1 : 1) * rnd(0.05, 0.09) * ref0.D;
-    }
-    const Eb = cageEnergy(c);
-    api.viewer.setEditable(shuffle(chosen));
+    let B2 = 0; for (const row of c.pts) for (const p of row) B2 = Math.max(B2, p.y);
+    // two well-separated control sections, one handle each on the topside / bilge
+    const iA = pick([2, 3]), iB = pick([c.ni - 4, c.ni - 3]);
+    const bumped = [[iA, pick([3, 4])], [iB, pick([2, 3, 4])]];
+    const fair = bumped.map(([i, j]) => ({ ...c.pts[i][j] }));
+    const d0 = bumped.map(([i, j], k) => {
+      const p = c.pts[i][j], out = Math.random() < 0.5 || p.y < 0.35 * B2;
+      const d = (out ? 1 : -1) * rnd(0.24, 0.3) * B2;
+      p.y = Math.max(0.02 * B2, p.y + d);
+      return Math.hypot(p.y - fair[k].y, p.z - fair[k].z, p.x - fair[k].x);
+    });
+    api.viewer.setEditable(bumped);
     api.refresh(true);
     api.clearUndo();
     await say(3, SHIPWRIGHT.rounds[3]);
 
     return new Promise((resolve) => {
       const scoreOf = () => {
-        const h = api.hydro(), L = api.lines();
-        const E = cageEnergy(api.state.cage);
-        const r = clamp01((Eb - E) / Math.max(1e-9, Eb - Eref));
-        const dev = Math.max(Math.abs(L.bounds.L / ref0.L - 1), Math.abs((2 * L.bounds.B2) / ref0.B - 1), Math.abs(L.bounds.Hmid / ref0.D - 1));
-        const dv = h ? Math.abs(h.V / ref0.V - 1) : 0;
-        const keep = dev <= 0.08 && dv <= 0.15;
-        return { r, keep, total: 35 * r * (keep ? 1 : 0.5) };
+        const parts = bumped.map(([i, j], k) => {
+          const p = api.state.cage.pts[i][j], f = fair[k];
+          const d = Math.hypot(p.x - f.x, p.y - f.y, p.z - f.z);
+          return clamp01((1 - d / d0[k]) / 0.67);
+        });
+        const r = (parts[0] + parts[1]) / 2;
+        return { r, parts, total: 35 * r };
       };
       const draw = () => {
         const sc = scoreOf();
         render(`${header(3)}
-          <p class="g-text">Four handles are showing. <b>Three</b> have been knocked out of line and <b>one</b> is sound. Drag them until the zebra stripes and every line run sweetly.</p>
+          <p class="g-text"><b>Two handles</b> have been knocked out of line. Drag each one back until it sits in line with its neighbours and the zebra stripes and waterlines run sweetly again.</p>
           <div class="g-spec">
-            <div><span>Fairness</span><b>${Math.round(sc.r * 100)}%</b><em>${sc.r > 0.95 ? 'beautifully fair' : sc.r > 0.7 ? 'nearly there' : 'lumpy'}</em>${meter(sc.r)}</div>
-            ${sc.keep ? '' : '<div class="warn">⚠ Keep the hull’s length, beam, depth and displacement close to the original (score halved).</div>'}
+            <div><span>Fairness</span><b>${Math.round(sc.r * 100)}%</b><em>${sc.r > 0.95 ? 'beautifully fair' : sc.r > 0.7 ? 'nearly there' : 'lumpy'} · handle 1 ${Math.round(sc.parts[0] * 100)}% · handle 2 ${Math.round(sc.parts[1] * 100)}%</em>${meter(sc.r)}</div>
           </div>
-          <p class="g-tip">Kinks in the stripes and wiggles in the waterlines show where a handle sits out of line with its neighbours. Try the <b>End</b> view to move a handle across its section, or <b>Profile</b> / <b>Plan</b> to see how it runs fore-and-aft. Drag directly; the arrow keys nudge (<kbd>Shift</kbd> for fine).</p>
+          <p class="g-tip">Look along the thin orange cage lines: a fair hull has each handle in line with its neighbours, fore-and-aft and around the section. The <b>End</b> view shows sideways errors best. Drag directly; the arrow keys nudge (<kbd>Shift</kbd> for fine).<br><b class="gold">Tip:</b> the <b>Zebra</b> fairness view is always available in Explore mode, under <i>Subdivision surface</i>.</p>
           <div class="g-foot"><span>Projected: <b>${Math.round(sc.total)}</b> / 35</span><button class="g-go" id="g-submit">Submit ▸</button></div>`);
         panel.querySelector('#g-submit').addEventListener('click', () => {
           api.onUpdate = null; const f = scoreOf(); run.scores[3] = f.total; api.viewer.setEditable(null); resolve(f.total);
@@ -405,7 +404,8 @@ export function initGame(api) {
   function exit(withCertificate = false) {
     $('#play-results').hidden = true;
     panel.hidden = true; ref.hidden = true;
-    document.body.classList.remove('playing', 'play-quiz', 'play-edit');
+    document.body.classList.remove('playing', 'play-quiz', 'play-edit', 'play-lockview');
+    api.viewer.setFocus(null);
     api.onUpdate = null;
     api.viewer.labelMode = 'all'; api.viewer.dimmed = false; api.viewer.editLocked = false;
     api.viewer.setHighlight(null); api.viewer.setGhost(null); api.viewer.setEditable(null);

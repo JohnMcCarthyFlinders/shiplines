@@ -9,7 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=5';
+import { isLocked } from './presets.js?v=7';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -234,6 +234,22 @@ export class Viewer3D {
     return true;
   }
 
+  /** Focus mode for matching exercises: fade the hull, lines and surroundings so only the
+   *  highlight, the ghost target and the editable handles stand out. `rows` limits the cage
+   *  lines drawn to those control sections. Pass null to leave focus mode. */
+  setFocus(f) {
+    this.focus = f || null;
+    const on = !!this.focus;
+    this.floor.visible = !on;
+    this.mats.holo.uniforms.uAlpha.value = on ? 0.18 : 0.8;
+    this.mats.holoMirror.uniforms.uAlpha.value = on ? 0.1 : 0.35;
+    if (on) this.tc.detach();
+    this.setSurfaceMode(this.surfaceMode);
+    this.water.visible = this.showWater && !on;
+    if (this.cage) this.updateCage();
+    if (this.lines) this.updateLines(this.lines);
+  }
+
   /** Limit which handles are shown and editable: an array of [i, j], or null for all. */
   setEditable(list) {
     this.editable = list ? new Set(list.map(([i, j]) => `${i},${j}`)) : null;
@@ -322,6 +338,7 @@ export class Viewer3D {
     const pos = [];
     const P = (i, j) => { const p = c.pts[i][j]; const v = S2T(p.x, p.y, p.z, this.o); return [v.x, v.y, v.z]; };
     for (let i = 0; i < c.ni; i++) for (let j = 0; j < c.nj; j++) {
+      if (this.focus && this.focus.rows) { if (this.focus.rows.includes(i) && j < c.nj - 1) pos.push(...P(i, j), ...P(i, j + 1)); continue; }
       if (j < c.nj - 1) pos.push(...P(i, j), ...P(i, j + 1));
       if (i < c.ni - 1) pos.push(...P(i, j), ...P(i + 1, j));
     }
@@ -407,10 +424,11 @@ export class Viewer3D {
       if (all && this.vis.waterlines) for (const w of lines.waterlines) lab(w.label, 'wl' + (w.isLWL ? ' lwl' : ''), b.xmin - b.L * 0.035, 0, w.z);
       if (all && this.vis.buttocks) for (const t of lines.buttocks) { const l = t.polylines.reduce((m, p) => (p.length > (m ? m.length : 0) ? p : m), null); if (l) { const q = l.reduce((m, p) => (p[0] > m[0] ? p : m), l[0]); lab(t.label, 'bt', q[0] + b.L * 0.012, t.y, q[2]); } }
       if (all && this.vis.diagonals) for (const d of lines.diagonals) { const l = d.polylines[0]; if (l) { const q = l.reduce((m, p) => (p[0] < m[0] ? p : m), l[0]); lab(d.label, 'dg', q[0] - b.L * 0.015, q[1], q[2]); } }
-      lab('BOW', 'end', b.xmax + b.L * 0.06, 0, b.Hmid * 0.5);
-      lab('STERN', 'end', b.xmin - b.L * 0.09, 0, b.Hmid * 0.5);
+      if (this.labelMode !== 'none') lab('BOW', 'end', b.xmax + b.L * 0.06, 0, b.Hmid * 0.5);
+      if (this.labelMode !== 'none') lab('STERN', 'end', b.xmin - b.L * 0.09, 0, b.Hmid * 0.5);
     }
     for (const m of Object.values(this._mats || {})) m.opacity = this.dimmed ? 0.22 : 1;
+    this.linesGroup.visible = !this.focus;
     this._buildHighlight();
     this._placeEnvironment(b);
   }
@@ -454,7 +472,7 @@ export class Viewer3D {
     this.water.scale.set(b.L * 1.35, b.B2 * 2 * 2.2, 1);
     this.water.position.set(b.xmid - this.o.x, b.lwl + b.z0 - this.o.z, 0);
     this.water.material.uniforms.uSpacing.value = niceStep(b.L / 24);
-    this.water.visible = this.showWater;
+    this.water.visible = this.showWater && !this.focus;
     const H = b.Hmax || 1;
     this.mats.holo.uniforms.uScan.value = 70 / H; this.mats.holoMirror.uniforms.uScan.value = 70 / H;
     this.mats.zebra.uniforms.uStripes.value = 14;
@@ -473,7 +491,7 @@ export class Viewer3D {
     else members.push([i, j]);
     this.sel = { i, j, members };
     this._placeProxy();
-    this.tc.attach(this.proxy);
+    if (!this.focus) this.tc.attach(this.proxy);
     const allLocked = members.every(([a, b]) => isLocked(c, a, b));
     this.tc.showZ = !allLocked;
     this.updateCage();
@@ -491,7 +509,7 @@ export class Viewer3D {
     this.hull.material = m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : this.mats.holo;
     this.mirror.material = m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : this.mats.holoMirror;
     this.mirror.visible = this.mirror.visible && this.showMirror;
-    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra';
+    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus;
     this._applyBloom();
     this.wireM.visible = this.wire.visible && this.showMirror;
   }
@@ -500,7 +518,7 @@ export class Viewer3D {
     this.cageGroup.visible = this.showCage;
     if (!this.showCage) this.select(null);
     this.setSurfaceMode(this.surfaceMode);
-    this.water.visible = this.showWater;
+    this.water.visible = this.showWater && !this.focus;
     this._applyBloom();
   }
 

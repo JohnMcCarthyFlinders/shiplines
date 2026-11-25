@@ -272,6 +272,9 @@ body.playing .hud-title, body.playing .hud-tip { display: none; }
 .gr-svg svg { display: block; width: 100%; height: auto; max-height: 34vh; background: #fbf7ec; }
 .g-text .gold { color: var(--gold); }
 body.play-edit #sel-mode { opacity: .35; pointer-events: none; }
+body.play-lockview .hud-views { opacity: .25; pointer-events: none; }
+body.play-lockview .panel { opacity: .3; pointer-events: none; }
+body.play-lockview .hud-data { display: none; }
 body.playing .hud-data { top: 26px; }
 
 @media (max-width: 900px) {
