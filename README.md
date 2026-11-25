@@ -53,6 +53,10 @@ Grades follow the Flinders scale: High Distinction 85+, Distinction 75+, Credit 
 
 **Handles:** drag a handle directly. It moves in the plane of the current view, so the profile, plan and end views give clean 2-D moves. Clicking a handle gives the arrow gizmo, and the arrow keys nudge the selection (Shift = fine).
 
+## Phones
+
+Phones and small touch tablets are sent to `mobile.html`, a short read-only tour. It covers the three plans; stations, waterlines, buttocks and diagonals, each highlighted on a real lines drawing; Steffy's conventions; fairing; and the hull presets, with a slowly turning 3D hull. It ends by asking the reader to open Shiplines on a computer, with copy and email buttons for the link. **Open the full version anyway** (`index.html?full=1`) skips the redirect for that browser session; touch devices then get a small "best on a computer" notice.
+
 ## How the geometry works
 
 - **Cage.** An 11 × 7 grid of control points runs stern→bow and keel→sheer, for the starboard half only.

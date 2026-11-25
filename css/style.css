@@ -243,6 +243,12 @@ body.playing .hud-title, body.playing .hud-tip { display: none; }
 .r-rows .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
 #d-cert.on { border-color: var(--gold); color: var(--gold); }
 
+/* notice for touch devices that opened the full tool */
+.touch-warn { display: none; }
+.touch-device .touch-warn { display: flex; align-items: center; gap: 10px; position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 40; background: var(--gold); color: var(--navy); padding: 9px 12px 9px 16px; font-size: 15px; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 94vw; }
+.touch-warn a { color: var(--navy); font-weight: 700; }
+.touch-warn button { background: var(--navy); color: var(--gold); border: 0; padding: 3px 9px; cursor: pointer; }
+
 /* shipwright, welcome, reference card */
 .wright { width: 96px; height: 96px; flex: none; filter: drop-shadow(0 0 10px rgba(255, 211, 0, .18)); }
 .wright-say { display: flex; gap: 14px; align-items: flex-start; margin: 4px 0 12px; }

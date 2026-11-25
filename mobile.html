@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shiplines tour · Flinders University Maritime Archaeology</title>
+<meta name="description" content="A short tour of ship lines plans. Shiplines itself is best used on a computer.">
+<link rel="stylesheet" href="css/mobile.css?v=9">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<header class="m-top">
+  <div class="m-wordmark"><b>FLINDERS</b><span>UNIVERSITY</span></div>
+  <div class="m-title"><small>Maritime Archaeology Program</small><strong>SHIPLINES</strong></div>
+</header>
+<div class="m-progress" id="progress"></div>
+
+<main id="tour">
+  <section class="card hero" data-step="0">
+    <div class="hero-3d" id="hero"></div>
+    <p class="kicker">hull lines lab · made by John McCarthy</p>
+    <div class="say" data-say="0"></div>
+    <div class="pc-note">💻 <b>Shiplines is built for a computer.</b> On a phone you get a short tour instead. Shaping hulls, the lines drawing and the challenge need a bigger screen and a mouse.</div>
+    <a class="go" href="#c1">Start the tour ↓</a>
+  </section>
+
+  <section class="card" id="c1" data-step="1">
+    <h2><span>1</span> A hull in three views</h2>
+    <p>A <b>lines plan</b> describes a curved hull on flat paper. Imagine slicing the hull with three sets of parallel planes. Each set is drawn in the view where it shows its <b>true shape</b>:</p>
+    <ul class="views">
+      <li><b>Sheer plan</b>: from the side</li>
+      <li><b>Half-breadth plan</b>: from above (one half; the hull is symmetrical)</li>
+      <li><b>Body plan</b>: end-on, fore body on one side and after body on the other</li>
+    </ul>
+    <figure class="plan" data-fig="plain"></figure>
+    <figcaption>Lines of a clipper ship, drawn by Shiplines.</figcaption>
+  </section>
+
+  <section class="card" data-step="2">
+    <h2><span>2</span> <i class="chip st"></i> Stations</h2>
+    <p>Vertical slices <b>across</b> the hull at regular intervals. Their true shape is the curve in the <b>body plan</b>; in the sheer and half-breadth plans they are straight lines. Frames were often moulded from them.</p>
+    <figure class="plan" data-fig="station"></figure>
+    <figcaption>In red: one station, in all three plans.</figcaption>
+  </section>
+
+  <section class="card" data-step="3">
+    <h2><span>3</span> <i class="chip wl"></i> Waterlines</h2>
+    <p>Horizontal slices at set heights above the baseline. Their true shape is the curve in the <b>half-breadth plan</b>. The <b>load waterline (LWL)</b> is where the hull floats when loaded; Steffy’s method puts it at about 3/5 of the depth amidships.</p>
+    <figure class="plan" data-fig="waterline"></figure>
+    <figcaption>In red: the load waterline.</figcaption>
+  </section>
+
+  <section class="card" data-step="4">
+    <h2><span>4</span> <i class="chip bt"></i> Buttock lines</h2>
+    <p>Vertical slices running <b>fore-and-aft</b>, parallel to the centreline. Their true shape is the curve in the <b>sheer plan</b>; they show how the bottom sweeps up towards bow and stern.</p>
+    <figure class="plan" data-fig="buttock"></figure>
+    <figcaption>In red: one buttock line.</figcaption>
+  </section>
+
+  <section class="card" data-step="5">
+    <h2><span>5</span> <i class="chip dg"></i> Diagonals</h2>
+    <p>Inclined fore-and-aft planes cutting through the turn of the bilge. Straight in the body plan, their developed shape is plotted in the <b>half-breadth plan</b>, opposite the waterlines. Draughtsmen used them to check that the bilge was fair.</p>
+    <figure class="plan" data-fig="diagonal"></figure>
+    <figcaption>In red: one diagonal.</figcaption>
+  </section>
+
+  <section class="card" data-step="6">
+    <h2><span>6</span> Steffy’s conventions</h2>
+    <p>Maritime archaeologists following J. R. Steffy draw lines plans in a consistent way, so reconstructions can be compared:</p>
+    <ul class="views">
+      <li>The <b>bow is to the left</b></li>
+      <li>The plans are titled <b>Sheer</b>, <b>Half-Breadth</b> and <b>Body</b></li>
+      <li>Sections are lettered <b>A, B, C …</b> forward of the midship section and numbered <b>1, 2, 3 …</b> aft of it</li>
+      <li>The midship section carries the amidships mark <b>⦶</b></li>
+    </ul>
+    <figure class="plan aged" data-fig="steffy"></figure>
+    <figcaption>The same conventions on an aged drafting sheet.</figcaption>
+    <div class="say small" data-say="1"></div>
+  </section>
+
+  <section class="card" data-step="7">
+    <h2><span>7</span> Fair lines</h2>
+    <p>A hull is <b>fair</b> when its curves change smoothly, with no bumps, kinks or flat spots. Shipwrights bent long wooden <b>battens</b>, held by lead weights called <b>ducks</b>, through the measured points to find a fair curve.</p>
+    <figure class="fair" id="fair-fig"></figure>
+    <p>Shiplines does the same with a <b>subdivision surface</b>, the technique behind Blender’s Subdivision Surface modifier. You move a cage of control handles and the smooth hull follows. <b>Zebra stripes</b> show at a glance where it is lumpy.</p>
+  </section>
+
+  <section class="card" data-step="8">
+    <h2><span>8</span> Hulls to explore</h2>
+    <p>On a computer you can reshape any of these. Tap one to see its lines:</p>
+    <div class="hulls" id="hulls"></div>
+    <figure class="plan" data-fig="gallery"></figure>
+    <figcaption id="gallery-cap"></figcaption>
+  </section>
+
+  <section class="card final" data-step="9">
+    <h2>Now get on a computer</h2>
+    <div class="say" data-say="2"></div>
+    <p class="big">On a <b>computer</b> you can:</p>
+    <ul class="views">
+      <li>shape a hull with your own hands and watch every line update</li>
+      <li>draw a traditional lines plan at true scale and export it</li>
+      <li>take the <b>Shiplines Challenge</b> and earn a certificate</li>
+    </ul>
+    <div class="link-box">
+      <span>Open this link on a computer</span>
+      <code id="full-url"></code>
+      <div class="btns">
+        <button id="copy">Copy link</button>
+        <a id="mail" class="btn">Email me the link</a>
+      </div>
+    </div>
+    <p class="anyway"><a id="anyway" href="index.html?full=1">Open the full version on this device anyway</a><br><small>It works best with a mouse and a screen at least 1200 px wide.</small></p>
+    <footer>Flinders University · Maritime Archaeology Program · made by John McCarthy · created using Claude</footer>
+  </section>
+</main>
+
+<script type="module" src="js/mobile.js?v=9"></script>
+</body>
+</html>
