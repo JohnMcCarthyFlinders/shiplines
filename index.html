@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shiplines · Flinders University Maritime Archaeology</title>
 <meta name="description" content="Interactive teaching tool for ship hull lines: shape a subdivision-surface hull and draw its sheer, half-breadth and body plans.">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=4">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -31,13 +31,17 @@
     <button class="tab" data-view="2d" role="tab" aria-selected="false"><span class="ico">▤</span> Lines Drawing</button>
   </nav>
   <div class="top-actions">
-    <button class="play" id="btn-play" title="Test yourself: four scored rounds and a certificate">▶ Play</button>
+    <button class="play" id="btn-play" title="Test yourself: four scored rounds and a certificate">▶ PLAY</button>
     <button class="ghost" id="btn-help" title="How to use (H)">? Guide</button>
   </div>
 </header>
 
 <main class="app">
   <aside class="panel" id="panel">
+    <button class="play-cta" id="btn-play-cta" type="button">
+      <span class="pc-ico">▶</span>
+      <span class="pc-txt"><b>Play the Shiplines Challenge</b><small>4 rounds · 100 points · earn a certificate</small></span>
+    </button>
     <section>
       <h3><span>01</span> Hull presets</h3>
       <div class="presets" id="presets"></div>
@@ -124,7 +128,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.</footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.1 · 25 Nov 2026</span></footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -245,6 +249,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

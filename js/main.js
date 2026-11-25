@@ -1,9 +1,9 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js';
-import { gridFromCage, subdivide } from './subdiv.js';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js';
-import { Viewer3D } from './viewer3d.js';
-import { renderDrawing, PAPERS } from './drawing2d.js';
-import { initGame } from './game.js';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=4';
+import { gridFromCage, subdivide } from './subdiv.js?v=4';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=4';
+import { Viewer3D } from './viewer3d.js?v=4';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=4';
+import { initGame } from './game.js?v=4';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];

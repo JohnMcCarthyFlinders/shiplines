@@ -6,7 +6,7 @@
 //   3  Shape to spec     (30)  reshape a hull to a target block coefficient and beam
 //   4  Fair the hull     (35)  remove bumps from a damaged hull (zebra stripes + fairness meter)
 
-import { makePreset, cloneCage, isLocked } from './presets.js';
+import { makePreset, cloneCage, isLocked } from './presets.js?v=4';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -301,6 +301,7 @@ export function initGame(api) {
   }
 
   $('#btn-play').addEventListener('click', intro);
+  $('#btn-play-cta').addEventListener('click', intro);
   $('#play-start').addEventListener('click', start);
   $('#play-cancel').addEventListener('click', () => ($('#play-intro').hidden = true));
   $('#play-student').addEventListener('input', (e) => e.target.classList.remove('need'));
