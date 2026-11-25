@@ -64,7 +64,7 @@ Phones and small touch tablets are sent to `mobile.html`, a short read-only tour
 - **Lines.** Each line is the exact intersection of the subdivided mesh with a plane. The segments are chained into polylines through shared mesh edges (`js/slicer.js`). In the drawing, the curves are run through those intersection points with a Catmull–Rom "batten".
 - **Hydrostatics.** Sectional areas below the LWL are integrated along the length from 48 transverse slices (`js/lines.js`).
 
-The presets are parametric teaching forms (`js/presets.js`) and are not reconstructions of particular vessels.
+The clipper, canoe and simple presets are parametric teaching forms (`js/presets.js`). The cargo ship and 18th-century warship are hand-faired control cages (`js/templates.js`), edited by John McCarthy in Shiplines itself. To update a template, save the design as JSON from the app and replace that preset's points in `js/templates.js`. None of the presets is a reconstruction of a particular vessel.
 
 ## Files
 
@@ -72,7 +72,8 @@ The presets are parametric teaching forms (`js/presets.js`) and are not reconstr
 index.html          app shell
 css/style.css       Flinders-branded UI
 js/main.js          state, UI wiring, undo, exports
-js/presets.js       parametric hull presets and centreplane constraints
+js/presets.js       hull presets (parametric generator) and centreplane constraints
+js/templates.js     hand-faired cages for the cargo ship and warship presets
 js/subdiv.js        Catmull–Clark subdivision on the cage grid
 js/slicer.js        plane slicing and polyline chaining
 js/lines.js         stations, waterlines, buttocks, diagonals, hydrostatics, table of offsets

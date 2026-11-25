@@ -3,6 +3,8 @@
 // y half-breadth (starboard +, centreplane = 0), z height above baseline.
 // Only the starboard half is modelled; the port side is its mirror image.
 
+import { TEMPLATES } from './templates.js?v=10';
+
 export const NI = 11; // control rows along the hull (stern → bow)
 export const NJ = 7;  // control points per half-section (keel → sheer)
 
@@ -106,6 +108,16 @@ function stemShift(P, s) {
 
 export function makePreset(key) {
   const P = PRESETS[key];
+  const T = TEMPLATES[key];
+  if (T) {
+    // hand-faired template
+    return {
+      version: 1, preset: key, type: P.label, name: P.vName,
+      ni: T.pts.length, nj: T.pts[0].length,
+      pts: T.pts.map((row) => row.map(([x, y, z]) => ({ x, y, z }))),
+      sternClosed: T.sternClosed,
+    };
+  }
   const Lk = P.L - P.stemRake - P.sternRake; // keel length
   const pts = [];
   for (let i = 0; i < NI; i++) {

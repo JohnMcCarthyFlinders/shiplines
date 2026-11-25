@@ -1,11 +1,11 @@
 // Phone tour: a light, mostly read-only introduction to lines plans that ends by
 // sending the reader to a computer for the full Shiplines tool.
 
-import { makePreset, PRESETS } from './presets.js?v=9';
-import { gridFromCage, subdivide } from './subdiv.js?v=9';
-import { computeLines } from './lines.js?v=9';
-import { renderDrawing } from './drawing2d.js?v=9';
-import { SHIPWRIGHT_SVG } from './game.js?v=9';
+import { makePreset, PRESETS } from './presets.js?v=10';
+import { gridFromCage, subdivide } from './subdiv.js?v=10';
+import { computeLines } from './lines.js?v=10';
+import { renderDrawing } from './drawing2d.js?v=10';
+import { SHIPWRIGHT_SVG } from './game.js?v=10';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -91,7 +91,7 @@ cards.forEach((c) => io.observe(c));
 // ---------------------------------------------------------------- slowly turning 3D hull (look, don't touch)
 (async () => {
   try {
-    const { Viewer3D } = await import('./viewer3d.js?v=9');
+    const { Viewer3D } = await import('./viewer3d.js?v=10');
     const v = new Viewer3D($('#hero'), {});
     const cage = makePreset('clipper');
     v.convention = 'steffy';

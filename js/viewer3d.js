@@ -9,7 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=9';
+import { isLocked } from './presets.js?v=10';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
