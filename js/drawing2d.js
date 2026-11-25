@@ -57,14 +57,17 @@ export function renderDrawing(lines, meta, opts = {}) {
 
   // ---------------------------------------------------------------- sheet geometry
   const fr = { l: 20, t: 10, r: W - 10, b: H - 10 };       // inner frame
-  const TB = { w: Math.min(178, W * 0.42), h: 50 };          // title block
+  const kT = Math.min(1, (W * 0.42) / 178);                    // title block / certificate scale for small sheets
+  const TB = { w: 178 * kT, h: 50 * kT };                       // title block
   const pad = 7;
   const area = { l: fr.l + pad, t: fr.t + pad, r: fr.r - pad, b: fr.b - pad };
   const ml = 16, mr = 16, gx = 12, topLab = 9, titleSp = 11, gy = 8, botLab = 7;
 
   const cert = meta.certificate || null;
-  const CERT_H = cert ? 50 : 0;     // certificate cartouche stacked above the scale bar
-  const tbTop = area.b - TB.h - 14 - CERT_H; // leave room for the scale bar above the title block
+  const CERT_H = cert ? 53 * kT : 0; // certificate cartouche, bottom-left beside the title block
+  // leave room for the scale bar above the title block; a certificate sits bottom-left beside it,
+  // so with a certificate the plans keep clear of the whole bottom band
+  const tbTop = area.b - Math.max(TB.h, CERT_H) - 14;
   const tbLeft = fr.r - TB.w;
   const AW = area.r - area.l, AH = area.b - area.t;
   const hTop = (s) => topLab + Hm * s + titleSp;
@@ -75,15 +78,15 @@ export function renderDrawing(lines, meta, opts = {}) {
   // Layout A ('beside'): body plan to the right of the sheer plan, sharing its baseline (Steffy's usual layout).
   const fitBeside = (s) => {
     const w = ml + L * s + gx + 2 * B2 * s + mr, h = hTop(s) + hHB(s);
-    const besideTB = area.l + Math.max(0, (AW - w) / 2) + ml + L * s + 6 < tbLeft || area.l + ml + L * s + 6 < tbLeft;
+    const besideTB = !cert && (area.l + Math.max(0, (AW - w) / 2) + ml + L * s + 6 < tbLeft || area.l + ml + L * s + 6 < tbLeft);
     const ok = w <= AW && h <= AH && area.t + hTop(s) + 4 < tbTop && (besideTB || area.t + h < tbTop);
     return { ok, w, h };
   };
   // Layout B ('below'): body plan beneath the half-breadth plan, left of the title block (for long hulls).
   const fitBelow = (s) => {
     const w = ml + L * s + mr, h1 = hTop(s) + hHB(s), h = h1 + 6 + hBody(s);
-    const sheerClearsTB = area.l + ml + L * s + 6 < tbLeft;
-    const ok = w <= AW && h <= AH && area.l + wBody(s) < tbLeft - 6 && (sheerClearsTB || area.t + h1 < tbTop);
+    const sheerClearsTB = !cert && area.l + ml + L * s + 6 < tbLeft;
+    const ok = w <= AW && h <= AH && area.l + wBody(s) < tbLeft - 6 && (sheerClearsTB || area.t + h1 < tbTop) && (!cert || area.t + h < tbTop);
     return { ok, w, h, h1 };
   };
   const best = (fit) => { for (const d of SCALES) if (fit(1000 / d).ok) return d; return SCALES[SCALES.length - 1]; };
@@ -97,8 +100,8 @@ export function renderDrawing(lines, meta, opts = {}) {
   let ox = area.l + Math.max(0, (AW - fit.w) / 2);
   const hbRight = (x) => x + ml + L * s + 6;
   if (hbRight(ox) >= tbLeft && area.t + (layout === 'below' ? fit.h1 : fit.h) >= tbTop) ox = area.l;
-  const clearsTB = hbRight(ox) < tbLeft;
-  const limit = layout === 'below' ? area.b : clearsTB ? area.b : tbTop;
+  const clearsTB = !cert && hbRight(ox) < tbLeft;
+  const limit = cert ? tbTop : layout === 'below' ? area.b : clearsTB ? area.b : tbTop;
   const spare = Math.max(0, limit - (area.t + fit.h));
   const nGaps = layout === 'below' ? 3 : 2;
   const vg = o.plansOnly ? 0 : Math.min(spare / (nGaps + 1), 22);
@@ -189,8 +192,10 @@ export function renderDrawing(lines, meta, opts = {}) {
   const hbTitleY = Yc + dmax * s + botLab + 6;
   T((xL + xR) / 2, hbTitleY, 'HALF-BREADTH PLAN', 4.2, 'middle', 'title');
   // bow / stern pointer under the sheer plan, Steffy style
-  T(steffy ? xL : xR, hbTitleY, steffy ? '◂ BOW' : 'BOW ▸', 2.4, steffy ? 'start' : 'end');
-  T(steffy ? xR : xL, hbTitleY, steffy ? 'STERN' : 'STERN', 2.4, steffy ? 'end' : 'start');
+  // bow / stern pointers sit outside the ends of the plan, level with the section labels
+  const pY = Yc + dmax * s + 4.6;
+  T(steffy ? xL - 3 : xR + 3, pY, steffy ? '◂ BOW' : 'BOW ▸', 2.2, steffy ? 'end' : 'start');
+  T(steffy ? xR + 3 : xL - 3, pY, 'STERN', 2.2, steffy ? 'start' : 'end');
 
   // ================================================================ BODY PLAN
   const bl = Xbc - B2 * s, br = Xbc + B2 * s;
@@ -224,8 +229,9 @@ export function renderDrawing(lines, meta, opts = {}) {
   if (midSt) amidships(Xbc, YzB(topZ) - 4.1);
   for (const w of lines.waterlines) T(br + 3, YzB(w.z) + 0.9, w.label, w.isLWL ? 2.6 : 2.3, 'start');
   for (const bt of lines.buttocks) for (const side of [-1, 1]) T(Xbc + side * bt.y * s, YbB + 3.4, bt.label.replace('B ', ''), 1.9);
-  T(Xbc + fwdSide * B2 * s * 0.5, YbB + 6.4, 'FORE BODY', 2.2);
-  T(Xbc - fwdSide * B2 * s * 0.5, YbB + 6.4, 'AFTER BODY', 2.2);
+  const roomy = B2 * s >= 13;
+  T(Xbc + fwdSide * B2 * s * 0.5, YbB + 6.4, roomy ? 'FORE BODY' : 'FWD', roomy ? 2.2 : 1.8);
+  T(Xbc - fwdSide * B2 * s * 0.5, YbB + 6.4, roomy ? 'AFTER BODY' : 'AFT', roomy ? 2.2 : 1.8);
   T(Xbc, YbB + 11, 'BODY PLAN', 4.2, 'middle', 'title');
 
   if (o.plansOnly) {
@@ -235,7 +241,9 @@ export function renderDrawing(lines, meta, opts = {}) {
   }
 
   // ================================================================ TITLE BLOCK, SCALE, FRAME
-  const tb = { x: fr.r - TB.w, y: fr.b - TB.h, w: TB.w, h: TB.h };
+  const tbR = { x: fr.r - TB.w, y: fr.b - TB.h, w: TB.w, h: TB.h }; // placement on the sheet
+  const tb = { x: 0, y: 0, w: 178, h: 50 };                          // drawn at full size, then scaled
+  const tbStart = out.length;
   const hyd = meta.hydro || {};
   const cells = [];
   const R = (x, y, w, h) => cells.push(`<rect x="${f2(x)}" y="${f2(y)}" width="${f2(w)}" height="${f2(h)}" fill="none" stroke="${ink}" stroke-width="0.25"/>`);
@@ -272,7 +280,9 @@ export function renderDrawing(lines, meta, opts = {}) {
   out.push(`<text x="${f2(ix)}" y="${f2(tb.y + 22.8)}" font-size="2.05" text-anchor="middle" class="type" fill="${ink}">PROGRAM</text>`);
   out.push(`<text x="${f2(ix)}" y="${f2(tb.y + 26.4)}" font-size="1.6" text-anchor="middle" class="type" fill="${ink}">College of Human Sciences &amp; Culture</text>`);
   const tx = tb.x + c1 + (tb.w - c1) / 2;
-  out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 8.2)}" font-size="5.6" text-anchor="middle" class="title" fill="${ink}" letter-spacing="0.5">LINES OF ${esc((meta.name || 'VESSEL').toUpperCase())}</text>`);
+  const ttl = `LINES OF ${(meta.name || 'VESSEL').toUpperCase()}`;
+  const tsz = Math.min(5.6, (tb.w - c1 - 6) / (ttl.length * 0.66));
+  out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 8.2)}" font-size="${f2(tsz)}" text-anchor="middle" class="title" fill="${ink}" letter-spacing="0.4">${esc(ttl)}</text>`);
   out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 13.2)}" font-size="2.6" text-anchor="middle" class="type" fill="${ink}">${esc(meta.type || '')}</text>`);
   const dims = `LOA ${b.L.toFixed(2)} m   ·   Beam ${(2 * B2).toFixed(2)} m   ·   Depth ${b.Hmid.toFixed(2)} m`;
   out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 18.2)}" font-size="2.3" text-anchor="middle" class="type" fill="${ink}">${dims}</text>`);
@@ -283,10 +293,12 @@ export function renderDrawing(lines, meta, opts = {}) {
   const lab = steffy ? 'Sections A, B, C … forward and 1, 2, 3 … aft of the midship section' : 'Stations numbered 0 (aft) … ' + lines.opts.stations + ' (fwd)';
   out.push(`<text x="${f2(tx)}" y="${f2(tb.y + 26.4)}" font-size="1.6" text-anchor="middle" class="type" fill="${ink}">${lab}</text>`);
   out.push('</g>');
+  const tbItems = out.splice(tbStart);
+  out.push(`<g transform="translate(${f2(tbR.x)} ${f2(tbR.y)}) scale(${kT.toFixed(4)})">${tbItems.join('')}</g>`);
 
   // graphic scale (scale of metres), first unit subdivided into tenths
-  const unit = niceStep(70 / (5 * s));
-  const uw = unit * s, sbx = tb.x + 14, sby = tb.y - 7.5;
+  const unit = niceStep((70 * kT) / (5 * s));
+  const uw = unit * s, sbx = tbR.x + 14 * kT, sby = tbR.y - 7.5 * kT;
   const sb = [];
   for (let k = 0; k < 5; k++) sb.push(`<rect x="${f2(sbx + k * uw)}" y="${f2(sby)}" width="${f2(uw)}" height="1.4" fill="${k % 2 ? 'none' : ink}" stroke="${ink}" stroke-width="0.15"/>`);
   for (let k = 0; k < 10; k++) sb.push(`<rect x="${f2(sbx - uw + (k * uw) / 10)}" y="${f2(sby)}" width="${f2(uw / 10)}" height="1.4" fill="${k % 2 ? ink : 'none'}" stroke="${ink}" stroke-width="0.12"/>`);
@@ -295,7 +307,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   sb.push(`<text x="${f2(sbx + 5 * uw + 2)}" y="${f2(sby + 1.3)}" font-size="2" class="type" fill="${ink}">METRES</text>`);
   sb.push(`<text x="${f2(sbx + 2.5 * uw)}" y="${f2(sby + 4.4)}" font-size="1.8" text-anchor="middle" class="type" fill="${ink}">SCALE 1:${denom}</text>`);
   out.push(`<g>${sb.join('')}</g>`);
-  if (cert) out.push(certificateBlock(cert, tb.x, tb.y - 12 - CERT_H, tb.w, CERT_H - 3, ink));
+  if (cert) out.push(`<g transform="translate(${f2(fr.l + 6)} ${f2(fr.b - 6 - 47 * kT)}) scale(${kT.toFixed(4)})">${certificateBlock(cert, 0, 0, 178, 47, ink)}</g>`);
 
   // frame with zone references, as on an engineering sheet
   const fz = [];

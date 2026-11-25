@@ -250,6 +250,10 @@ body.playing .hud-title, body.playing .hud-tip { display: none; }
 .wright-say blockquote::before { content: ''; position: absolute; left: -9px; top: 26px; border: 9px solid transparent; border-left: 0; border-right-color: #f4ecd8; }
 .wright-say cite { display: block; margin-top: 6px; font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: #7a5a2a; font-style: normal; }
 .game .wright { width: 84px; height: 84px; }
+.wright-mini { margin: 2px 0 10px; gap: 10px; }
+.game .wright-mini .wright { width: 54px; height: 54px; }
+.wright-mini blockquote { font-size: 14px; padding: 8px 11px; }
+.wright-mini blockquote::before { top: 16px; }
 .r-say { margin: 0 0 14px; }
 .welcome-box { width: min(820px, 94vw); text-align: center; padding: 26px 32px 22px; }
 .w-brand span { display: block; font: 600 11.5px var(--mono); letter-spacing: 2.5px; color: #a9c4e0; }

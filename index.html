@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shiplines · Flinders University Maritime Archaeology</title>
 <meta name="description" content="Interactive teaching tool for ship hull lines: shape a subdivision-surface hull and draw its sheer, half-breadth and body plans.">
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -128,7 +128,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.3 · 25 Nov 2026</span></footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.4 · 25 Nov 2026</span></footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -202,7 +202,7 @@
         <h4>Keys</h4>
         <p>Drag a handle directly, or click it for the arrow gizmo · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> nudge the selected handle in the current view (<kbd>Shift</kbd> = fine) · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
         <h4>Play</h4>
-        <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, shape a hull to spec and fair a damaged hull. You finish with a certificate drawn on your own lines plan.</p>
+        <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, match a midship section and fair a damaged hull. You finish with a certificate on a traditional lines plan.</p>
         <h4>Exercise ideas</h4>
         <ol>
           <li>Fair the <i>Simple</i> hull until the zebra stripes and every waterline run sweetly.</li>
@@ -220,7 +220,7 @@
     <div class="w-brand"><span>FLINDERS UNIVERSITY · MARITIME ARCHAEOLOGY PROGRAM</span><strong>SHIPLINES</strong><em>hull lines lab · made by John McCarthy</em></div>
     <div class="w-say wright-say"></div>
     <div class="w-choices">
-      <button class="w-card w-test" id="w-test"><i>⚓</i><b>Test your skills</b><small>Four rounds with the old shipwright: read the lines, name the sections, shape a hull and fair it. Earn a certificate on your own lines plan.</small></button>
+      <button class="w-card w-test" id="w-test"><i>⚓</i><b>Test your skills</b><small>Four rounds with the old shipwright: read the lines, name the sections, shape a hull and fair it. Earn a certificate on a traditional lines plan.</small></button>
       <button class="w-card w-explore" id="w-explore"><i>✎</i><b>Explore ship lines</b><small>Shape hulls freely, watch the stations, waterlines and buttocks, check fairness with the Zebra view, and draw a traditional lines plan.</small></button>
     </div>
     <button class="w-guide" id="w-guide">or read the guide first</button>
@@ -230,11 +230,11 @@
 <div class="modal" id="play-intro" hidden>
   <div class="modal-box play-box">
     <h2>▶ Shiplines Challenge</h2>
-    <p>Show that you can read and make a lines plan. Four rounds, 100 points, and a certificate drawn on <i>your own</i> lines plan at the end.</p>
+    <p>Show that you can read and make a lines plan. Four rounds, 100 points, and a certificate on a traditional lines plan at the end.</p>
     <ol class="rounds">
       <li><b>Know your lines</b> <span>20 pts</span><small>Identify the flashing line and the plan that shows its true shape.</small></li>
       <li><b>Steffy’s labels</b> <span>15 pts</span><small>Name the flashing section: A, B, C forward and 1, 2, 3 aft of midships.</small></li>
-      <li><b>Match the section</b> <span>30 pts</span><small>Move four handles until the midship section matches the owner’s target. This becomes your certificate drawing.</small></li>
+      <li><b>Match the section</b> <span>30 pts</span><small>Move four handles until the midship section matches the owner’s target.</small></li>
       <li><b>Fair the hull</b> <span>35 pts</span><small>Two handles are out of line: put them back using the zebra stripes and fairness meter.</small></li>
     </ol>
     <div class="play-fields">
@@ -263,6 +263,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script type="module" src="js/main.js?v=7"></script>
+<script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>

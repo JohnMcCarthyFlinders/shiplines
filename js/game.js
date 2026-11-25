@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked } from './presets.js?v=7';
-import { gridFromCage, subdivide } from './subdiv.js?v=7';
-import { computeLines, hydrostatics } from './lines.js?v=7';
-import { renderDrawing } from './drawing2d.js?v=7';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=8';
+import { gridFromCage, subdivide } from './subdiv.js?v=8';
+import { computeLines, hydrostatics } from './lines.js?v=8';
+import { renderDrawing } from './drawing2d.js?v=8';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -30,8 +30,8 @@ export const SHIPWRIGHT = {
   rounds: [
     'Come in, come in. You’ll be the new hand, so. Before you go near a batten I want to see do you know your lines. I’ll put a light on one of them, and you tell me what it is and which plan shows its true shape. There’s a drawing beside you there if you need it.',
     'Fair play to you. Now, Steffy had a tidy way of naming sections, and I’ll hold you to it: letters forward of the midship section, A, B, C, and numbers aft of it, 1, 2, 3. The bow is to the left, mind. Tell me the name of the section I’m showing you.',
-    'Right so. The owner is after changing his mind about the midship section; they always do. The dashed gold curve is what he wants, and the flashing white one is what he has. You’ve four handles to work with: bring the two curves together. And don’t be expecting the handles to sit on the curve. The hull lies inside the cage, so it does.',
-    'Ah, would you look at that. Someone’s after leaning timber against the frames and knocked two of them out of fair. Find the two handles and put them back in line with their neighbours. Watch the zebra stripes: where they kink, she’s lumpy. The End view is handy for shifting them across the section, and the arrow keys for the fine work.',
+    'Right so. The owner is after changing his mind about the midship section; they always do. Bring the flashing white curve onto his dashed gold one. And don’t be expecting the handles to sit on the curve: the hull lies inside the cage, so it does.',
+    'Ah, would you look at that. Someone’s after leaning timber against the frames and knocked two of them out of fair. Find the two handles and put them back in line with their neighbours. Watch the zebra stripes: where they kink, the hull is lumpy. The End view is handy for shifting them across the section, and the arrow keys for the fine work.',
   ],
   verdict: {
     'High Distinction': 'Well now. That’s a master’s hand, and I don’t say that lightly. You’d have a place in any loft I ever worked in.',
@@ -271,7 +271,6 @@ export function initGame(api) {
     api.viewer.setFocus({ rows: [mi] });
     document.body.classList.add('play-lockview');
     api.refresh();
-    await say(2, SHIPWRIGHT.rounds[2]);
 
     return new Promise((resolve) => {
       const measure = () => {
@@ -288,6 +287,7 @@ export function initGame(api) {
         api.viewer.setHighlight(sc.mid.polylines);
         api.viewer.setGhost(tMid.polylines);
         render(`${header(2)}
+          <div class="wright-say wright-mini">${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.rounds[2])}</blockquote></div>
           <p class="g-text">Drag the four <b class="c-handle">orange handles</b> of the midship control section until the <b class="hl">flashing white</b> section lies on the owner’s <b class="gold">dashed gold</b> target.</p>
           <div class="g-spec">
             <div><span>Match</span><b>${Math.round(sc.m * 100)}%</b><em>${sc.m > 0.95 ? 'spot on' : sc.m > 0.75 ? 'close' : 'keep going'}</em>${meter(sc.m)}</div>
@@ -332,7 +332,9 @@ export function initGame(api) {
     api.viewer.setEditable(bumped);
     api.refresh(true);
     api.clearUndo();
+    api.viewer.editLocked = true;
     await say(3, SHIPWRIGHT.rounds[3]);
+    api.viewer.editLocked = false;
 
     return new Promise((resolve) => {
       const scoreOf = () => {
@@ -412,7 +414,9 @@ export function initGame(api) {
     api.viewer.setScreenShift(0);
     api.setLock(false);
     if (withCertificate && run?.result) {
-      api.loadCage(run.design, { name: run.vessel, drawnBy: run.student });
+      const lines = makePreset('warship');
+      lines.type = `${PRESETS.warship.label} (certificate lines)`;
+      api.loadCage(lines, { name: run.vessel, drawnBy: run.student });
       api.setCertificate(run.result);
       api.setView('2d');
     } else if (run?.saved) api.restoreState(run.saved);
