@@ -125,7 +125,12 @@ input[type=checkbox] { accent-color: var(--cyan); margin: 0; }
 .hud-data { right: 28px; top: 26px; width: 236px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px); padding: 10px 12px; font: 12px/1.55 var(--mono); }
 .hud-data h4 { margin: 0 0 6px; font: 700 12px var(--ui); letter-spacing: 3px; color: var(--cyan); display: flex; justify-content: space-between; }
 .hud-data h4 em { font-style: normal; color: var(--gold); }
-.hud-data .kv { display: flex; justify-content: space-between; }
+.hud-data { pointer-events: auto; }
+.hud-data .kv { display: flex; justify-content: space-between; position: relative; }
+.hud-data .kv[data-def]:not([data-def=""]) span { text-decoration: underline dotted rgba(127, 155, 184, .6); text-underline-offset: 3px; cursor: help; }
+.hud-data .kv[data-def]:not([data-def=""]):hover span { color: var(--gold); }
+.hud-data .kv[data-def]:not([data-def=""]):hover::after { content: attr(data-def); position: absolute; right: calc(100% + 22px); top: -6px; width: 270px; padding: 9px 12px; background: rgba(0, 22, 46, .96); border: 1px solid var(--gold); color: #e6f0fa; font: 500 13.5px/1.4 var(--ui); letter-spacing: .2px; white-space: normal; z-index: 5; box-shadow: 0 6px 24px rgba(0, 0, 0, .45); pointer-events: none; }
+.hud-data .hud-hint { margin: 6px 0 0; font: 10.5px var(--mono); color: rgba(127, 155, 184, .7); }
 .hud-data .kv span { color: var(--muted); }
 .hud-data .kv b { font-weight: 600; color: #fff; }
 .hud-data hr { border: 0; border-top: 1px dashed rgba(61, 232, 255, .25); margin: 6px 0; }

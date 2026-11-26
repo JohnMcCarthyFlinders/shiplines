@@ -5,9 +5,9 @@ import {
   viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
   parsePoints, parseOBJ, localize, alignLocal, normAlign, decimateIdx, boundsOf,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=21';
+} from './reference.js?v=22';
 import * as THREE from 'three';
-import { gridFromCage, subdivide } from './subdiv.js?v=21';
+import { gridFromCage, subdivide } from './subdiv.js?v=22';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];

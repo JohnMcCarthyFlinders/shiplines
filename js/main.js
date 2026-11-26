@@ -1,12 +1,12 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=21';
-import { gridFromCage, subdivide } from './subdiv.js?v=21';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=21';
-import { Viewer3D } from './viewer3d.js?v=21';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=21';
-import { initGame } from './game.js?v=21';
-import { initReference } from './refui.js?v=21';
-import { initTrace } from './traceui.js?v=21';
-import { loftGrid } from './loft.js?v=21';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=22';
+import { gridFromCage, subdivide } from './subdiv.js?v=22';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=22';
+import { Viewer3D } from './viewer3d.js?v=22';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=22';
+import { initGame } from './game.js?v=22';
+import { initReference } from './refui.js?v=22';
+import { initTrace } from './traceui.js?v=22';
+import { loftGrid } from './loft.js?v=22';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -164,10 +164,25 @@ function hudTitle() {
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ------------------------------------------------------------------ HUD data
+// plain-language definitions shown on hover, for students meeting the terms for the first time
+const DEFS = {
+  'LOA': 'Length overall: the greatest length of the hull, from the foremost point of the bow to the aftermost point of the stern.',
+  'Beam (moulded)': 'The greatest breadth of the hull, measured to the moulded surface (the outside of the frames, before planking or plating is added).',
+  'Depth amidships': 'The height of the hull at the midship section, from the baseline (the bottom of the keel) up to the sheer line at the deck edge.',
+  'LWL draught T': 'How deep the hull sits in the water: the height of the load waterline (LWL) above the baseline. Shiplines sets the LWL at 60% of the depth amidships by default; you can change it under Lines.',
+  'LWL × BWL': 'The length and the breadth of the hull where it meets the water, measured on the load waterline.',
+  'Volume ∇': 'The volume of the hull below the load waterline, which is the volume of water the hull pushes aside. The symbol ∇ is called nabla.',
+  'Displacement Δ': 'The weight of water the hull pushes aside. By Archimedes’ principle this equals the weight of the floating ship. Given in tonnes of seawater (1.025 t per m³).',
+  'LCB from aft': 'Longitudinal centre of buoyancy: the fore-and-aft position of the centre of the underwater volume, measured from the aft end. The upward push of the water acts here, so the ship’s weight must balance over it for her to float level.',
+  'Block Cb': 'Block coefficient: the underwater volume divided by the box that would just contain it (LWL × BWL × draught). Near 1 is a box-like barge or bulk carrier; around 0.4–0.6 is a fine, fast hull.',
+  'Prismatic Cp': 'Prismatic coefficient: the underwater volume divided by a prism with the midship section’s shape, running the full waterline length. It shows how much of the volume is carried out towards the ends: low means fine ends, high means full ends.',
+  'Midship Cm': 'Midship section coefficient: the underwater area of the midship section divided by the rectangle around it (BWL × draught). Near 1 means a square, flat-floored section; lower means a rounder or V-shaped one.',
+  'Waterplane Cwp': 'Waterplane coefficient: the area of the load waterline shape divided by the rectangle around it (LWL × BWL). It shows how full the hull is at the waterline, which affects stability.',
+};
 function renderHud() {
   if (!lines) return;
   const b = lines.bounds, h = hydro;
-  const kv = (k, v, u = '') => `<div class="kv"><span>${k}</span><b>${v}${u ? ' <small>' + u + '</small>' : ''}</b></div>`;
+  const kv = (k, v, u = '') => `<div class="kv" data-def="${DEFS[k.replace(/<[^>]+>/g, '')] || ''}"><span>${k}</span><b>${v}${u ? ' <small>' + u + '</small>' : ''}</b></div>`;
   const bar = (v) => `<div class="bar"><i style="width:${Math.max(0, Math.min(1, v)) * 100}%"></i></div>`;
   let html = `<h4>HULL DATA <em>m</em></h4>`;
   html += kv('LOA', b.L.toFixed(2)) + kv('Beam (moulded)', (2 * b.B2).toFixed(2)) + kv('Depth amidships', b.Hmid.toFixed(2));
@@ -180,6 +195,7 @@ function renderHud() {
     html += kv('Midship C<sub>m</sub>', h.Cm.toFixed(3)) + bar(h.Cm);
     html += kv('Waterplane C<sub>wp</sub>', h.Cwp.toFixed(3)) + bar(h.Cwp);
   }
+  html += `<p class="hud-hint">Hover over a term for its meaning</p>`;
   $('#hud-data').innerHTML = html;
   $('#hud-title').innerHTML = hudTitle();
 }
