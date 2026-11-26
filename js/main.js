@@ -1,10 +1,12 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=12';
-import { gridFromCage, subdivide } from './subdiv.js?v=12';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=12';
-import { Viewer3D } from './viewer3d.js?v=12';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=12';
-import { initGame } from './game.js?v=12';
-import { initReference } from './refui.js?v=12';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=13';
+import { gridFromCage, subdivide } from './subdiv.js?v=13';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=13';
+import { Viewer3D } from './viewer3d.js?v=13';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=13';
+import { initGame } from './game.js?v=13';
+import { initReference } from './refui.js?v=13';
+import { initTrace } from './traceui.js?v=13';
+import { loftGrid } from './loft.js?v=13';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -43,14 +45,20 @@ function schedule(full = true) {
   }, full ? 30 : 160);
 }
 function rebuild() {
-  grid = subdivide(gridFromCage(state.cage), state.level);
+  const lofted = state.source === 'loft' ? loftGrid(state.trace) : null;
+  state.loftOk = !!lofted;
+  grid = lofted || subdivide(gridFromCage(state.cage), state.level);
   lines = computeLines(grid, state.lineOpts);
   viewer.convention = state.lineOpts.convention;
+  const blank = state.source === 'loft' && !lofted;
+  if (viewer.blank !== blank) { viewer.blank = blank; viewer.setSurfaceMode(viewer.surfaceMode); }
+  document.body.classList.toggle('trace-blank', blank);
   viewer.updateSurface(grid);
   ref?.afterLines(grid, lines);
   viewer.updateLines(lines);
   viewer.updateCage();
   renderHud();
+  trace?.render();
 }
 
 // ------------------------------------------------------------------ presets
@@ -94,17 +102,21 @@ function applyCage(recentre) {
 }
 
 // ------------------------------------------------------------------ undo
+const snapshot = () => JSON.stringify({ cage: state.cage, trace: state.trace, source: state.source });
 function pushUndo() {
-  undo.push(JSON.stringify(state.cage)); if (undo.length > 120) undo.shift();
+  undo.push(snapshot()); if (undo.length > 120) undo.shift();
   redo.length = 0; updateUndoButtons();
 }
 function doUndo(from, to) {
   if (!from.length) return;
-  to.push(JSON.stringify(state.cage));
-  const c = JSON.parse(from.pop());
+  to.push(snapshot());
+  const snap = JSON.parse(from.pop());
+  const c = snap.cage || snap;
+  if (snap.trace) state.trace = snap.trace;
   const recentre = c.preset !== state.cage.preset;
   state.cage = c;
   applyCage(recentre);
+  trace?.list();
 }
 function updateUndoButtons() { $('#btn-undo').disabled = !undo.length; $('#btn-redo').disabled = !redo.length; }
 
@@ -144,7 +156,9 @@ function showSel() {
 
 function hudTitle() {
   const s = viewer.sel;
-  const t = `<span>${(state.cage?.type || '').toUpperCase()} · CATMULL–CLARK L${state.level}</span><b>${esc(state.cage?.name || '')}</b>`;
+  const t = state.source === 'loft'
+    ? `<span>TRACED HULL · ${state.loftOk ? 'LOFTED THROUGH BATTENS' : 'TRACING…'}</span><b>${esc($('#d-name').value || 'Traced hull')}</b>`
+    : `<span>${(state.cage?.type || '').toUpperCase()} · CATMULL–CLARK L${state.level}</span><b>${esc(state.cage?.name || '')}</b>`;
   return s ? t + `<span class="sel">◉ EDITING ${viewer.mode === 'point' ? `S${s.i}·P${s.j}` : viewer.mode === 'station' ? `SECTION ${s.i}` : `ROW ${s.j}`}</span>` : t;
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -176,7 +190,8 @@ let lastSheet = null;
 function renderSheet() {
   if (!lines) return;
   if (!hydro) hydro = hydrostatics(grid, lines);
-  const meta = { name: $('#d-name').value || state.cage.name, type: state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, sternClosed: state.cage.sternClosed, certificate: state.certificate && state.showCert ? state.certificate : null, reconstruction: ref?.sheetMeta() };
+  if (state.source === 'loft' && !state.loftOk) { $('#sheet').innerHTML = '<div class="sheet-wait">Finish tracing the lines to draw the lofted hull.</div>'; return; }
+  const meta = { name: $('#d-name').value || state.cage.name, type: state.source === 'loft' ? 'Lofted from traced lines' : state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, surface: state.source === 'loft' ? 'Lofted battens' : null, sternClosed: state.source === 'loft' ? true : state.cage.sternClosed, certificate: state.certificate && state.showCert ? state.certificate : null, reconstruction: ref?.sheetMeta() };
   const r = renderDrawing(lines, meta, { paper: state.paper, aged: state.aged, inks: state.inks, convention: state.lineOpts.convention, layout: state.layout });
   lastSheet = r;
   const el = $('#sheet');
@@ -272,7 +287,7 @@ function exportCSV() {
   download(`${slug()}_offsets.csv`, head.concat(rows.map((r) => r.map((c) => (/[",]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(','))).join('\n'), 'text/csv');
 }
 function saveJSON() {
-  const data = { app: 'shiplines', version: 1, saved: new Date().toISOString(), cage: state.cage, level: state.level, lineOpts: state.lineOpts, drawing: { name: $('#d-name').value, drawnBy: $('#d-by').value, paper: state.paper }, reference: ref.save() };
+  const data = { app: 'shiplines', version: 1, saved: new Date().toISOString(), cage: state.cage, level: state.level, lineOpts: state.lineOpts, drawing: { name: $('#d-name').value, drawnBy: $('#d-by').value, paper: state.paper }, reference: ref.save(), trace: state.trace, source: state.source };
   download(`${slug()}.shiplines.json`, JSON.stringify(data, null, 1), 'application/json');
 }
 function loadJSON(file) {
@@ -284,7 +299,9 @@ function loadJSON(file) {
       pushUndo();
       state.cage = d.cage; state.level = d.level ?? 2; Object.assign(state.lineOpts, d.lineOpts || {});
       if (d.drawing) { $('#d-name').value = d.drawing.name || d.cage.name; $('#d-by').value = d.drawing.drawnBy || ''; state.paper = d.drawing.paper || 'A3'; }
-      syncControls(); applyCage(true); ref.load(d.reference); toast('Design opened');
+      if (d.trace) state.trace = d.trace;
+      if (d.source === 'loft' && !trace.on) trace.enter(); else if (d.source !== 'loft' && trace.on) trace.exit();
+      syncControls(); applyCage(true); ref.load(d.reference); trace.loaded(); toast('Design opened');
     } catch (e) { toast('Could not open: ' + e.message); }
   };
   fr.readAsText(file);
@@ -389,6 +406,7 @@ const api = {
     sheetView.fitted = false;
   },
   setLock(on) {
+    if (on && trace.on) trace.exit();
     state.playing = on;
     ref.setPlaying(on);
     if (on && state.lineOpts.convention !== 'steffy') ref.onConvention(state.lineOpts.convention, 'steffy');
@@ -405,10 +423,12 @@ const api = {
   },
 };
 
-let ref = null;
+let ref = null, trace = null;
 
 function init() {
-  ref = initReference({ state, viewer, lines: () => lines, grid: () => grid, schedule, toast, setCam, download });
+  ref = initReference({ state, viewer, lines: () => lines, grid: () => grid, schedule, toast, setCam, download, onHookReleased: () => trace?.reinstall() });
+  trace = initTrace({ state, viewer, schedule, toast, setCam, pushUndo, cageLines: () => computeLines(subdivide(gridFromCage(state.cage), 2), state.lineOpts) });
+  viewer.onViewChange = () => trace?.viewChanged();
   buildPresetButtons();
   initSheetPanZoom();
   $$('.tab').forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));

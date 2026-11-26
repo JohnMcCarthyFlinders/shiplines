@@ -9,8 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=12';
-import { underlayCorners } from './reference.js?v=12';
+import { isLocked } from './presets.js?v=13';
+import { underlayCorners } from './reference.js?v=13';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -168,12 +168,18 @@ export class Viewer3D {
     let down = null;
     const ndc = (e) => { const r = dom.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
     const hitPlane = (e, plane) => { this.ray.setFromCamera(ndc(e), this.camera); const v = new THREE.Vector3(); return this.ray.ray.intersectPlane(plane, v) ? v : null; };
-    dom.addEventListener('pointerdown', (e) => { if (this.pointerHook) { e.stopImmediatePropagation(); dom.setPointerCapture(e.pointerId); this.pointerHook.down?.(e); } }, true);
-    dom.addEventListener('pointermove', (e) => { if (this.pointerHook) { this.pointerHook.move?.(e); } }, true);
-    dom.addEventListener('pointerup', (e) => { if (this.pointerHook) { e.stopImmediatePropagation(); this.pointerHook.up?.(e); } }, true);
-    dom.addEventListener('wheel', (e) => { if (this.pointerHook) { e.preventDefault(); this.pointerHook.wheel?.(e); } }, { passive: false, capture: true });
+    // a tool may take the pointer; a hook's down() returning false passes the event on to the camera
+    let hooked = false;
     dom.addEventListener('pointerdown', (e) => {
-      if (this.pointerHook) return;
+      if (!this.pointerHook) return;
+      if (this.pointerHook.down?.(e) === false) return;
+      hooked = true; e.stopImmediatePropagation(); dom.setPointerCapture(e.pointerId);
+    }, true);
+    dom.addEventListener('pointermove', (e) => { if (this.pointerHook) this.pointerHook.move?.(e, hooked); }, true);
+    dom.addEventListener('pointerup', (e) => { if (this.pointerHook && hooked) { e.stopImmediatePropagation(); this.pointerHook.up?.(e); } hooked = false; }, true);
+    dom.addEventListener('wheel', (e) => { if (this.pointerHook && this.pointerHook.wheel) { e.preventDefault(); this.pointerHook.wheel(e); } }, { passive: false, capture: true });
+    dom.addEventListener('pointerdown', (e) => {
+      if (this.pointerHook && !this.clickCapture) return;
       down = { x: e.clientX, y: e.clientY };
       if (e.button !== 0 || this.tc.dragging || this.tc.axis || this.clickCapture) return;
       const h = this._pick(e);
@@ -302,12 +308,25 @@ export class Viewer3D {
     this._applyBloom && this._applyBloom();
   }
   /** Hand the pointer to a tool (e.g. moving an underlay); null gives it back to the camera. */
-  setPointerHook(h) {
-    this.pointerHook = h;
-    this.orbitO.enabled = !h && this.camera === this.ortho;
-    this.orbit.enabled = !h && this.camera === this.persp;
-    this.renderer.domElement.style.cursor = h ? 'move' : '';
+  setPointerHook(h, { keepOrbit = false, cursor = 'move' } = {}) {
+    this.pointerHook = h; this.pointerHookKeepOrbit = keepOrbit;
+    this.orbitO.enabled = (!h || keepOrbit) && this.camera === this.ortho;
+    this.orbit.enabled = (!h || keepOrbit) && this.camera === this.persp;
+    this.renderer.domElement.style.cursor = h ? cursor : '';
     if (h) this.select(null);
+  }
+  /** Project a ship-space point to client (screen) pixels. */
+  toScreen(x, y, z) {
+    const v = S2T(x, y, z, this.o).project(this.camera), r = this.renderer.domElement.getBoundingClientRect();
+    return [r.left + ((v.x + 1) / 2) * r.width, r.top + ((1 - v.y) / 2) * r.height];
+  }
+  /** three.js position for a ship-space point (for tools that draw their own overlays). */
+  shipToThree(x, y, z) { return S2T(x, y, z, this.o); }
+  /** Hide the hull and its lines (e.g. while a traced hull is still incomplete). */
+  setBlank(on) {
+    this.blank = !!on;
+    this.setSurfaceMode(this.surfaceMode);
+    if (this.lines) this.updateLines(this.lines);
   }
   /** Image pixel under the pointer on the current view's underlay, or null. */
   pickUnderlay(e) {
@@ -535,6 +554,7 @@ export class Viewer3D {
       this.linesGroup.add(o);
     };
     const lw = this.lineWidth;
+    if (this.blank) { this._placeEnvironment(lines.bounds); return; }
     const tv = this.traceView;
     if (tv) {
       // tracing: only the outline and the lines that are true curves in this view, in one colour
@@ -652,13 +672,13 @@ export class Viewer3D {
   // ------------------------------------------------------------------ display
   setSurfaceMode(m) {
     this.surfaceMode = m;
-    this.hull.visible = this.mirror.visible = m !== 'off' && !this.traceView;
+    this.hull.visible = this.mirror.visible = m !== 'off' && !this.traceView && !this.blank;
     const pickM = (holo) => (m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : m === 'evidence' ? this.mats.evidence : holo);
     this.hull.material = pickM(this.mats.holo);
     this.mirror.material = pickM(this.mats.holoMirror);
     if (m === 'evidence') this._paintSupport();
     this.mirror.visible = this.mirror.visible && this.showMirror;
-    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus && !this.traceView;
+    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus && !this.traceView && !this.blank;
     if (this.water) this.water.visible = this.showWater && !this.focus && !this.traceView;
     if (this.floor) this.floor.visible = !this.focus && !this.traceView;
     this._applyBloom();
@@ -707,7 +727,9 @@ export class Viewer3D {
     }
     this.renderPass.camera = this.camera;
     this.tc.camera = this.camera;
+    if (this.pointerHook) { this.orbitO.enabled = this.camera === this.ortho && !!this.pointerHookKeepOrbit; this.orbit.enabled = this.camera === this.persp && !!this.pointerHookKeepOrbit; }
     this._underlayVis();
+    this.onViewChange?.(v);
   }
   _fitOrtho() {
     const b = this._bounds; if (!b) return;

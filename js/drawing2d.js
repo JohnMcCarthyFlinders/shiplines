@@ -290,7 +290,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   const small = [];
   const fields = [
     ['SCALE', `1 : ${denom}`], ['SHEET', `${o.paper}`], ['DRAWN', meta.drawnBy || '—'], ['DATE', meta.date || ''],
-    ['CONVENTION', steffy ? 'After Steffy (1994)' : 'Naval arch. (bow right)'], ['SURFACE', `Subdiv. level ${meta.level}`], ['UNITS', 'Metres'], ['CHECKED', ''],
+    ['CONVENTION', steffy ? 'After Steffy (1994)' : 'Naval arch. (bow right)'], ['SURFACE', meta.surface || `Subdiv. level ${meta.level}`], ['UNITS', 'Metres'], ['CHECKED', ''],
   ];
   for (let r = 0; r < 2; r++) {
     cx = tb.x;

@@ -48,6 +48,22 @@ Load a scanned lines plan (PNG/JPG) behind the **Profile**, **Plan** or **End** 
 - **Fine-tuning:** typed shift, scale and rotate values, opacity, and light-on-dark display.
 - **Saving:** underlays are saved with the design.
 
+## Trace lines → hull (lofting)
+
+For recovering a hull from a lines plan, Shiplines works the way a draughtsman does: trace the lines, then build the surface through them.
+
+1. **Load and calibrate the plan** behind each view (*Trace a plan*). Calibration anchors are fixed: the first click is x = 0 on the baseline, so use the same aft and forward references (perpendiculars or end stations) in Profile and Plan.
+2. **Start tracing** and draw battens: keel, stem, sternpost and sheer in the Profile view; the deck line in Plan (optional); and the sections in the End view. **+ Add section** asks for a click on the profile at the station, then switches to the End view. Either side of the body plan can be traced.
+   - Click to add points, drag to move, click on a batten to insert, and Shift+click to delete.
+   - Right-drag pans and scroll zooms.
+   - Undo covers tracing too.
+3. **Loft:** once the keel, stem, sternpost, sheer and two or more sections exist, a hull is lofted through the sections (stem and sternpost act as the end sections). It uses a common girth parameter from keel to sheer and is held to the traced keel, sheer and deck lines.
+4. **Check:** the lofted hull's own buttocks (Profile), waterlines (Plan) and stations (End) are drawn in gold over the scan. Where they part company with the drawn lines, a section was mistraced or the original lines are unfair.
+
+The lofted hull feeds everything else: hull data, the lines drawing, offsets CSV, OBJ export, and fitting to evidence. **Example battens** fills in battens taken from the current preset, to try the workflow without a scan. Tracing is saved with the design.
+
+Current limits: the ends are a stem and a sternpost on the centreline (no transom yet), and a traced hull cannot yet be turned back into an editable cage.
+
 ## Evidence & reconstruction
 
 Import what survives of a wreck and fit the hull to it.

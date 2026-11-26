@@ -267,6 +267,32 @@ body.playing .ref-sec { opacity: .3; pointer-events: none; }
 .move-bar kbd { color: var(--navy); border-color: rgba(0,47,96,.4); background: rgba(255,255,255,.4); }
 .move-bar button { background: var(--navy); color: var(--gold); border: 0; padding: 4px 14px; font-weight: 700; cursor: pointer; }
 
+/* trace lines */
+.sheet-wait { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%); white-space: nowrap; background: rgba(0,22,46,.92); border: 1px solid #ff3d9a; color: #ffd1e6; padding: 14px 20px; font-size: 16px; }
+.tr-start { width: 100%; margin-top: 8px; background: rgba(255,61,154,.15); border: 1px solid #ff3d9a; color: #ffd1e6; padding: 8px; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
+.tr-start:hover { background: rgba(255,61,154,.28); }
+#trace-panel h5 { margin: 10px 0 4px; font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.tr-hint { font-size: 13.5px; color: #e6f0fa; background: rgba(255,61,154,.1); border-left: 3px solid #ff3d9a; padding: 7px 9px; margin-top: 8px; }
+.tr-hint .keys { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.tr-hint button { background: #ff3d9a; color: #fff; border: 0; padding: 1px 8px; cursor: pointer; }
+.tr-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tr-c { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; width: 100%; text-align: left; background: rgba(0,47,96,.5); border: 1px solid rgba(255,61,154,.3); padding: 5px 8px; cursor: pointer; font-weight: 600; }
+.tr-c i { font: 11px var(--mono); color: var(--muted); font-style: normal; }
+.tr-c small { font-weight: 400; color: var(--muted); }
+.tr-c.on { border-color: #ff3d9a; background: rgba(255,61,154,.18); box-shadow: inset 3px 0 0 #ff3d9a; }
+.tr-sec { display: grid; grid-template-columns: 1fr auto auto; gap: 4px; align-items: center; margin-bottom: 4px; }
+.tr-sec.on .tr-c { border-color: #ff3d9a; background: rgba(255,61,154,.18); box-shadow: inset 3px 0 0 #ff3d9a; }
+.tr-sec label { font-size: 12px; color: var(--muted); display: flex; gap: 3px; align-items: center; }
+.tr-sec input { width: 62px; background: #00101f; border: 1px solid rgba(61,232,255,.25); padding: 2px 4px; font: 12px var(--mono); }
+.tr-del { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #b9cde2; cursor: pointer; padding: 2px 6px; }
+.tr-del:hover { border-color: #ff6b5a; color: #ff6b5a; }
+.tr-need { margin-top: 8px; font-size: 13.5px; color: #ffc233; }
+.tr-need.ok { color: #9dffb9; }
+.lab3d.trace-lab { color: #ff7ab8; font-size: 10px; }
+.lab3d.trace-lab.act { color: #fff; font-size: 12px; }
+body.tracing #sel-mode, body.tracing #selinfo, body.tracing #btn-reset, body.tracing .panel section:has(#level) { opacity: .35; pointer-events: none; }
+body.trace-blank .hud-data { display: none; }
+
 /* notice for touch devices that opened the full tool */
 .touch-warn { display: none; }
 .touch-device .touch-warn { display: flex; align-items: center; gap: 10px; position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 40; background: var(--gold); color: var(--navy); padding: 9px 12px 9px 16px; font-size: 15px; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 94vw; }

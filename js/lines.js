@@ -2,8 +2,8 @@
 // plus outline curves and basic hydrostatics from a subdivided surface grid.
 // All returned heights are measured from the baseline (lowest point of the hull).
 
-import { sliceGrid } from './slicer.js?v=12';
-import { boundaries, gridBounds } from './subdiv.js?v=12';
+import { sliceGrid } from './slicer.js?v=13';
+import { boundaries, gridBounds } from './subdiv.js?v=13';
 
 export const LINE_DEFAULTS = {
   stations: 10,       // number of equal station spaces along the length

@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=12';
-import { gridFromCage, subdivide } from './subdiv.js?v=12';
-import { computeLines, hydrostatics } from './lines.js?v=12';
-import { renderDrawing } from './drawing2d.js?v=12';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=13';
+import { gridFromCage, subdivide } from './subdiv.js?v=13';
+import { computeLines, hydrostatics } from './lines.js?v=13';
+import { renderDrawing } from './drawing2d.js?v=13';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },

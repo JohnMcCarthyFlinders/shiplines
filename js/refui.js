@@ -5,16 +5,16 @@ import {
   viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
   parsePoints, parseOBJ, alignArray, decimate, boundsOf, ALIGN_DEFAULT,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=12';
-import { gridFromCage, subdivide } from './subdiv.js?v=12';
+} from './reference.js?v=13';
+import { gridFromCage, subdivide } from './subdiv.js?v=13';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
 const VIEW_NAMES = { profile: 'Profile', plan: 'Plan', body: 'End' };
 const CAL_STEPS = {
-  profile: ['Click the <b>stern</b> end of the baseline on the drawing.', 'Now click the <b>bow</b> end of the baseline.', 'Distance between them along the baseline'],
-  plan: ['Click the centreline at the <b>stern</b> end.', 'Now click the centreline at the <b>bow</b> end.', 'Distance between them along the centreline'],
+  profile: ['Click a reference point on the <b>baseline at the stern</b> (e.g. the aft perpendicular or aftmost station).', 'Now click the matching point on the baseline <b>towards the bow</b> (e.g. the forward perpendicular).', 'Distance between them along the baseline'],
+  plan: ['Click the centreline at the <b>same aft reference</b> you used in the profile.', 'Now click the centreline at the <b>same forward reference</b>.', 'Distance between them along the centreline'],
   body: ['Click where the <b>centreline meets the baseline</b>.', 'Now click a point on the <b>baseline</b> a known distance out from the centreline (a buttock line, or the beam).', 'Distance out from the centreline'],
 };
 
@@ -90,6 +90,7 @@ export function initReference(ctx) {
       viewer.clickCapture = null;
       const b = ctx.lines().bounds;
       const guess = u.view === 'body' ? b.B2 : b.L;
+      void b;
       status(`<div class="cal">3/3 · ${steps[2]}: <input type="number" id="cal-d" step="0.01" value="${guess.toFixed(2)}"> m <button id="cal-ok">Apply</button><button id="cal-x">Cancel</button></div>`);
       $('#cal-x').onclick = cancel;
       $('#cal-d').focus(); $('#cal-d').select();
@@ -98,9 +99,10 @@ export function initReference(ctx) {
         if (!(d > 0)) { $('#cal-d').focus(); return; }
         const conv = state.lineOpts.convention;
         let A, B;
-        if (u.view === 'profile') { A = { x: b.xmin, y: 0, z: b.z0 }; B = { x: b.xmin + d, y: 0, z: b.z0 }; }
-        else if (u.view === 'plan') { A = { x: b.xmin, y: 0, z: 0 }; B = { x: b.xmin + d, y: 0, z: 0 }; }
-        else { A = { x: 0, y: 0, z: b.z0 }; B = { x: 0, y: d, z: b.z0 }; }
+        // fixed anchors (x = 0 at the first point, baseline z = 0), so all three views agree
+        if (u.view === 'profile') { A = { x: 0, y: 0, z: 0 }; B = { x: d, y: 0, z: 0 }; }
+        else if (u.view === 'plan') { A = { x: 0, y: 0, z: 0 }; B = { x: d, y: 0, z: 0 }; }
+        else { A = { x: 0, y: 0, z: 0 }; B = { x: 0, y: d, z: 0 }; }
         calibrateUnderlay(u, pts[0], pts[1], shipToHV(u.view, conv, A), shipToHV(u.view, conv, B));
         R.calibrating = false;
         refreshUL();
@@ -146,7 +148,7 @@ export function initReference(ctx) {
   }
   const redraw = () => { viewer.setUnderlays(R.underlays, state.lineOpts.convention); syncUL(); };
   function stopMove() {
-    R.moving = false; viewer.setPointerHook(null);
+    R.moving = false; viewer.setPointerHook(null); ctx.onHookReleased?.();
     $('#move-bar').hidden = true; $('#ul-move').classList.remove('on');
   }
   function startMove() {
@@ -275,7 +277,7 @@ export function initReference(ctx) {
   }
   function afterHydro() {
     if (!R.ev || state.playing) return;
-    const g = state.level >= 3 ? ctx.grid() : subdivide(gridFromCage(state.cage), 3);
+    const g = state.source === 'loft' || state.level >= 3 ? ctx.grid() : subdivide(gridFromCage(state.cage), 3);
     R.dev = deviations(g, R.ev.points);
     R.stats = fitStats(R.dev, R.tol);
     viewer.colourEvidence(R.dev, R.tol);
