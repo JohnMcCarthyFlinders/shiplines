@@ -35,7 +35,7 @@ python3 -m http.server 8000
 | **Lines (3D)** | Stations (gold), waterlines (cyan, LWL highlighted), buttock lines (magenta), diagonals (green), and profile and sheer (white). Each has its own colour; all share a common, adjustable thickness. Counts and spacing are adjustable. |
 | **Views** | Perspective, plus orthographic profile (sheer), plan (half-breadth) and end (body) views |
 | **Hull data** | LOA, beam, depth, LWL draught, volume, displacement (sea water), LCB, and C<sub>b</sub>, C<sub>p</sub>, C<sub>m</sub>, C<sub>wp</sub>, all live |
-| **Lines drawing** | ISO A4–A1 sheet with zone-referenced frame, title block, scale of metres and an automatically chosen standard scale. The body plan goes beside the sheer plan, or below it for long hulls. A **Hull data** table (dimensions, hydrostatics and form coefficients) and a hand-drawn-style **perspective sketch** fill the free space; if the plans leave no room, the sheet drops one or two standard scales. Aged paper or clean, black or coloured inks, with the student's name and date. |
+| **Lines drawing** | ISO A4–A1 sheet with zone-referenced frame, title block, scale of metres and an automatically chosen standard scale. The body plan goes beside the sheer plan, or below it for long hulls. A **Hull data** table (dimensions, hydrostatics and form coefficients) and an **axonometric view** of the hull with a fore-and-aft scale of metres fill the free space; if the plans leave no room, the sheet drops one or two standard scales. Aged paper or clean, black or coloured inks, with the student's name and date. |
 | **Export** | Drawing as SVG (fonts embedded) or 150 dpi PNG, or print; table of offsets as CSV; hull as OBJ (Blender/Rhino); design as JSON (re-openable); 3D snapshot as PNG |
 
 ## Trace a plan

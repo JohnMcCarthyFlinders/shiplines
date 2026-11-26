@@ -297,7 +297,7 @@ function drawSheet(lines, meta, opts = {}) {
       [Math.min(fr.r - TB.w, sbxP - uwP - 3), fr.b - TB.h - 14 * kT, fr.r, fr.b],
     ];
     if (band) busy.push([fr.l, fr.b - 8 - 47 * kT, fr.l + 8 + 178 * kT, fr.b]);
-    extras = o.extras === false ? null : placeExtras({ out, busy, area, lines, hyd: meta.hydro, ink, kT, smoothPath });
+    extras = o.extras === false ? null : placeExtras({ out, busy, area, lines, hyd: meta.hydro, ink, kT, smoothPath, col, W: { out: W_OUT, hull: W_HULL } });
   }
 
   // ================================================================ TITLE BLOCK, SCALE, FRAME
@@ -519,41 +519,49 @@ function freeRects(busy, area, gap = 3) {
   return res;
 }
 
-function mulberry(seed) {
-  return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
 
-// Three-quarter view from forward and above the near (starboard) side, bow to the left.
+// Three-quarter parallel (axonometric) view from forward and above the starboard side, bow to the left.
 function perspective(lines) {
   const b = lines.bounds, cx = b.xmid, cz = b.Hmax / 2;
-  const th = (50 * Math.PI) / 180, ph = (24 * Math.PI) / 180, Dc = 2.4 * b.L;
+  const th = (50 * Math.PI) / 180, ph = (24 * Math.PI) / 180;
   return (q, side = 1) => {
     const px = -(q[0] - cx), py = side * q[1], pz = q[2] - cz;
     const u = px * Math.cos(th) + py * Math.sin(th);
     const d = -px * Math.sin(th) + py * Math.cos(th);
     const v = pz * Math.cos(ph) - d * Math.sin(ph);
-    const w = d * Math.cos(ph) + pz * Math.sin(ph);
-    const f = Dc / (Dc - w);
-    return [u * f, -v * f];
+    return [u, -v];
   };
 }
 
-function placeExtras({ out, busy, area, lines, hyd, ink, kT, smoothPath }) {
+function placeExtras({ out, busy, area, lines, hyd, ink, kT, smoothPath, col, W }) {
   const prj = perspective(lines), ol = lines.outline;
   // everything the sketch draws, as [polyline, side, weight]
   const items = [];
   for (const side of [1, -1]) {
     if (ol.sheer) items.push([ol.sheer, side, 'sheer']);
     if (side > 0 && ol.stem) items.push([ol.stem, side, 'out']);
-    for (const k of ['keel', 'stern']) if (ol[k]) items.push([ol[k], side, 'hid']);
+    if (side > 0 && ol.keel) items.push([ol.keel, side, 'out']);
+    if (ol.stern) items.push([ol.stern, side, 'out']);
     for (const st of lines.stations) for (const l of st.polylines) items.push([l, side, 'st']);
     for (const w of lines.waterlines) if (w.isLWL) for (const l of w.polylines) items.push([l, side, 'lwl']);
   }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const [l, side] of items) for (const q of l) { const [x, y] = prj(q, side); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const grow = (x, y) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
+  for (const [l, side] of items) for (const q of l) { const [x, y] = prj(q, side); grow(x, y); }
+  // scale of metres laid parallel to the keel, just clear of the hull on the lower side: in a
+  // parallel projection every fore-and-aft line is drawn at one scale, so the bar measures lengths
+  const o0 = prj([0, 0, 0]), o1 = prj([-1, 0, 0]);                  // pointing aft: reads left to right
+  const perM = Math.hypot(o1[0] - o0[0], o1[1] - o0[1]);             // projected units per metre
+  const e = [(o1[0] - o0[0]) / perM, (o1[1] - o0[1]) / perM], nv = [-e[1], e[0]];
+  let amin = Infinity, amax = -Infinity, bmax = -Infinity;
+  for (const [l, side] of items) for (const q of l) { const p = prj(q, side), a = p[0] * e[0] + p[1] * e[1], bb = p[0] * nv[0] + p[1] * nv[1]; amin = Math.min(amin, a); amax = Math.max(amax, a); bmax = Math.max(bmax, bb); }
+  const span = amax - amin, off = bmax + 0.05 * span, barLen = 0.5 * span;
+  const at = (a, bb) => [a * e[0] + bb * nv[0], a * e[1] + bb * nv[1]];
+  const BA = at(amin + 0.04 * span, off);
+  for (const t of [0, 1]) for (const d of [0, 0.09 * span]) { const p = at(amin + 0.04 * span + t * barLen, off + d); grow(p[0], p[1]); }
   const pw = x1 - x0, ph = y1 - y0;
   const TW = 62 * kT, TH = 52 * kT, wantTable = hyd && hyd.V > 0;
-  const capS = 8; // labels and padding around the sketch, mm
+  const capS = 11; // title and padding below the view, mm
   const sketchIn = (r) => Math.min((r[2] - r[0] - 4) / pw, (r[3] - r[1] - capS - 2) / ph);
 
   // try each spot for the table (bottom-right of a free area), then fit the sketch around it
@@ -578,50 +586,30 @@ function placeExtras({ out, busy, area, lines, hyd, ink, kT, smoothPath }) {
   status.sketch = true;
   const r = best.sk, w = pw * k, h = ph * k;
   const ox = (r[0] + r[2]) / 2 - w / 2 - x0 * k, oy = r[1] + (r[3] - r[1] - capS - h) / 2 - y0 * k;
-  const rnd = mulberry(1851);
-  const pencil = ink === '#000' ? '#2b2b2b' : '#3b342c';
-  const wobble = (pts, amp) => {
-    const a1 = rnd() * 6.28, a2 = rnd() * 6.28, b1 = rnd() * 6.28, b2 = rnd() * 6.28, n = pts.length;
-    const res = pts.map((p, i) => {
-      const t = i / Math.max(1, n - 1);
-      return [p[0] + amp * (0.7 * Math.sin(t * 5.1 + a1) + 0.3 * Math.sin(t * 13 + a2)), p[1] + amp * (0.7 * Math.sin(t * 4.3 + b1) + 0.3 * Math.sin(t * 11 + b2))];
-    });
-    // a pencil line overshoots its ends a little
-    if (n >= 2) for (const [i, j] of [[0, 1], [n - 1, n - 2]]) {
-      const dx = res[i][0] - res[j][0], dy = res[i][1] - res[j][1], d = Math.hypot(dx, dy) || 1, e = 0.4 + rnd() * 1.1;
-      res[i] = [res[i][0] + (dx / d) * e, res[i][1] + (dy / d) * e];
-    }
-    return res;
-  };
   const paths = [];
-  const stroke = (d, wd, op) => d && paths.push(`<path d="${d}" fill="none" stroke="${pencil}" stroke-width="${wd}" stroke-opacity="${op}" stroke-linecap="round" stroke-linejoin="round"/>`);
-  const thin = (pts) => { const o = []; for (const p of pts) { const l = o[o.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 0.8) o.push(p); } return o; };
-  // far side first, faint, so the near side reads over it
-  for (const pass of [-1, 1]) for (const [l, side, kind] of items) {
-    if (side !== pass) continue;
-    const pts = thin(l.map((q) => { const [x, y] = prj(q, side); return [ox + x * k, oy + y * k]; }));
+  const P = (pts, w, c = ink) => { const d = smoothPath(pts); if (d) paths.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`); };
+  for (const [l, side, kind] of items) {
+    const pts = l.map((q) => { const [x, y] = prj(q, side); return [ox + x * k, oy + y * k]; });
     if (pts.length < 2) continue;
-    const far = side < 0;
-    if (kind === 'out' || kind === 'sheer') {
-      const w = far ? 0.22 : 0.32, op = far ? 0.65 : 0.9;
-      stroke(smoothPath(wobble(pts, 0.28)), w, op);
-      stroke(smoothPath(wobble(pts, 0.42)), 0.13, 0.5);
-    } else if (kind === 'hid') stroke(smoothPath(wobble(pts, 0.25)), 0.1, 0.2); else if (kind === 'lwl') stroke(smoothPath(wobble(pts, 0.3)), far ? 0.12 : 0.2, far ? 0.25 : 0.6);
-    else stroke(smoothPath(wobble(pts, 0.22)), far ? 0.08 : 0.16, far ? 0.14 : 0.6);
+    if (kind === 'lwl') P(pts, W.hull * 1.3, col('waterlines'));
+    else if (kind === 'st') P(pts, W.hull * 0.8, col('stations'));
+    else P(pts, W.out * 0.85);
   }
-  // a few strokes of water along the near side at the load waterline
-  const lwl = lines.waterlines.find((w) => w.isLWL);
-  if (lwl && lwl.polylines[0]) {
-    const l = lwl.polylines[0], n = l.length;
-    for (let i = 0; i < 9; i++) {
-      const q = l[Math.floor(((i + 0.5) / 9) * (n - 1))];
-      const [x, y] = prj(q, 1), X = ox + x * k, Y = oy + y * k + 1.2 + rnd() * 1.5, len = 2 + rnd() * 4;
-      stroke(`M${(X - len / 2).toFixed(2)},${Y.toFixed(2)}q${(len / 2).toFixed(2)},${(-0.4 - rnd() * 0.4).toFixed(2)} ${len.toFixed(2)},0`, 0.12, 0.45);
-    }
+  out.push(`<g class="axo">${paths.join('')}</g>`);
+
+  {
+    const ang = (Math.atan2(e[1], e[0]) * 180) / Math.PI, mmPerM = perM * k;
+    const unit = niceStep(barLen / perM / 4), uw = unit * mmPerM;
+    const ax = ox + BA[0] * k, ay = oy + BA[1] * k, bar = [];
+    bar.push(`<g transform="translate(${ax.toFixed(2)} ${ay.toFixed(2)}) rotate(${ang.toFixed(2)})">`);
+    for (let n = 0; n < 4; n++) bar.push(`<rect x="${(n * uw).toFixed(2)}" y="0" width="${uw.toFixed(2)}" height="1.1" fill="${n % 2 ? 'none' : ink}" stroke="${ink}" stroke-width="0.13"/>`);
+    for (let n = 0; n <= 4; n++) bar.push(`<text x="${(n * uw).toFixed(2)}" y="3.6" font-size="1.9" text-anchor="middle" class="type" fill="${ink}">${+(n * unit).toFixed(2)}</text>`);
+    bar.push(`<text x="${(4 * uw + 2).toFixed(2)}" y="1.1" font-size="1.9" class="type" fill="${ink}">METRES</text>`);
+    bar.push(`<text x="${(2 * uw).toFixed(2)}" y="6.4" font-size="1.7" text-anchor="middle" class="type" fill="${ink}">SCALE FOR FORE-AND-AFT LENGTHS</text></g>`);
+    out.push(bar.join(''));
   }
-  out.push(`<g class="sketch">${paths.join('')}</g>`);
-  const cy = oy + y1 * k + 6;
-  out.push(`<text x="${((r[0] + r[2]) / 2).toFixed(2)}" y="${cy.toFixed(2)}" font-size="3.2" text-anchor="middle" class="hand" fill="${ink}">perspective sketch · not to scale</text>`);
+  const cy = oy + y1 * k + 7;
+  out.push(`<text x="${((r[0] + r[2]) / 2).toFixed(2)}" y="${cy.toFixed(2)}" font-size="4.2" text-anchor="middle" class="title" fill="${ink}">AXONOMETRIC VIEW</text>`);
   return { ...status, ok: status.table, n: 1 + status.table };
 }
 

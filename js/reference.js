@@ -3,8 +3,8 @@
 //  · evidence  — recorded points / meshes from a wreck, checked against the hull
 // All geometry here is in ship coordinates (metres): x fore-and-aft, y half-breadth, z height.
 
-import { makePreset } from './presets.js?v=22';
-import { gridFromCage, subdivide, gridBounds } from './subdiv.js?v=22';
+import { makePreset } from './presets.js?v=24';
+import { gridFromCage, subdivide, gridBounds } from './subdiv.js?v=24';
 
 // ======================================================================= view axes
 // Each orthographic view shows two ship axes. (h, v) are distances to the screen's
