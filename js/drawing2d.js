@@ -46,6 +46,19 @@ function smoothPath(pts) {
 }
 
 export function renderDrawing(lines, meta, opts = {}) {
+  // the hull data and perspective sketch need room of their own: if the plans at their largest
+  // standard scale leave none, draw them one or two scales smaller
+  let r = drawSheet(lines, meta, opts);
+  for (let tries = 0; tries < 2 && r.extras && !r.extras.ok && opts.extras !== false; tries++) {
+    const i = SCALES.indexOf(r.scale);
+    if (i < 0 || i >= SCALES.length - 1) break;
+    const r2 = drawSheet(lines, meta, { ...opts, minDenom: SCALES[i + 1] });
+    if (r2.extras && (r2.extras.ok || r2.extras.n > r.extras.n)) r = r2; else break;
+  }
+  return r;
+}
+
+function drawSheet(lines, meta, opts = {}) {
   const o = { paper: 'A3', aged: true, inks: 'mono', convention: 'steffy', layout: 'auto', ...opts };
   const [W, H] = PAPERS[o.paper] || PAPERS.A3;
   const b = lines.bounds;
@@ -91,7 +104,7 @@ export function renderDrawing(lines, meta, opts = {}) {
     const ok = w <= AW && h <= AH && area.l + wBody(s) < tbLeft - 6 && (sheerClearsTB || area.t + h1 < tbTop) && (!band || area.t + h < tbTop);
     return { ok, w, h, h1 };
   };
-  const best = (fit) => { for (const d of SCALES) if (fit(1000 / d).ok) return d; return SCALES[SCALES.length - 1]; };
+  const best = (fit) => { for (const d of SCALES) if (d >= (o.minDenom || 0) && fit(1000 / d).ok) return d; return SCALES[SCALES.length - 1]; };
   const dA = best(fitBeside), dB = best(fitBelow);
   const layout = o.plansOnly || o.layout === 'beside' ? 'beside' : o.layout === 'below' ? 'below' : (dB < dA ? 'below' : 'beside');
   const denom = layout === 'below' ? dB : dA;
@@ -273,6 +286,20 @@ export function renderDrawing(lines, meta, opts = {}) {
     return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map(f2).join(' ')}" class="lines-sheet" preserveAspectRatio="xMidYMid meet"><style>${SHEET_CSS}</style><rect x="${f2(vb[0])}" y="${f2(vb[1])}" width="${f2(vb[2])}" height="${f2(vb[3])}" fill="#fbf7ec"/>${out.join('')}</svg>`, scale: denom, layout };
   }
 
+  let extras = null;
+  // ================================================================ HULL DATA + PERSPECTIVE SKETCH
+  // placed in whatever room the plans leave, clear of the title block and any certificate
+  {
+    const unitP = niceStep((70 * kT) / (5 * s)), uwP = unitP * s, sbxP = fr.r - TB.w + 14 * kT;
+    const busy = [
+      [X0 - ml, area.t, X0 + L * s + mr, Yc + dmax * s + botLab + titleSp + 2],
+      [bl - 14, YbB - Hm * s - topLab - 6, br + 14, YbB + 14],
+      [Math.min(fr.r - TB.w, sbxP - uwP - 3), fr.b - TB.h - 14 * kT, fr.r, fr.b],
+    ];
+    if (band) busy.push([fr.l, fr.b - 8 - 47 * kT, fr.l + 8 + 178 * kT, fr.b]);
+    extras = o.extras === false ? null : placeExtras({ out, busy, area, lines, hyd: meta.hydro, ink, kT, smoothPath });
+  }
+
   // ================================================================ TITLE BLOCK, SCALE, FRAME
   const tbR = { x: fr.r - TB.w, y: fr.b - TB.h, w: TB.w, h: TB.h }; // placement on the sheet
   const tb = { x: 0, y: 0, w: 178, h: 50 };                          // drawn at full size, then scaled
@@ -376,7 +403,7 @@ export function renderDrawing(lines, meta, opts = {}) {
 ${bg}
 <g ${inkFilter} opacity="${o.aged ? 0.92 : 1}">${fz.join('')}${out.join('\n')}</g>
 </svg>`;
-  return { svg, scale: denom, paper: o.paper, size: [W, H], layout };
+  return { svg, scale: denom, paper: o.paper, size: [W, H], layout, extras };
 }
 
 function wrapText(text, maxChars) {
@@ -475,4 +502,148 @@ function agedDefs(W, H) {
   <linearGradient id="sl-foldh" x1="0" x2="0" y1="0" y2="1">
     <stop offset="0" stop-color="#5a4524" stop-opacity="0"/><stop offset="0.5" stop-color="#5a4524" stop-opacity="0.09"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
   </linearGradient>`;
+}
+
+
+// ---------------------------------------------------------------- free space on the sheet
+function freeRects(busy, area, gap = 3) {
+  const xs = new Set([area.l, area.r]), ys = new Set([area.t, area.b]);
+  for (const r of busy) { xs.add(r[0] - gap); xs.add(r[2] + gap); ys.add(r[1] - gap); ys.add(r[3] + gap); }
+  const X = [...xs].filter((v) => v >= area.l && v <= area.r).sort((a, b) => a - b);
+  const Y = [...ys].filter((v) => v >= area.t && v <= area.b).sort((a, b) => a - b);
+  const clear = (x1, y1, x2, y2) => busy.every((r) => x2 <= r[0] - gap + 1e-6 || x1 >= r[2] + gap - 1e-6 || y2 <= r[1] - gap + 1e-6 || y1 >= r[3] + gap - 1e-6);
+  const res = [];
+  for (let a = 0; a < X.length; a++) for (let b = a + 1; b < X.length; b++) for (let c = 0; c < Y.length; c++) for (let d = c + 1; d < Y.length; d++) {
+    if (clear(X[a], Y[c], X[b], Y[d])) res.push([X[a], Y[c], X[b], Y[d]]);
+  }
+  return res;
+}
+
+function mulberry(seed) {
+  return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+// Three-quarter view from forward and above the near (starboard) side, bow to the left.
+function perspective(lines) {
+  const b = lines.bounds, cx = b.xmid, cz = b.Hmax / 2;
+  const th = (50 * Math.PI) / 180, ph = (24 * Math.PI) / 180, Dc = 2.4 * b.L;
+  return (q, side = 1) => {
+    const px = -(q[0] - cx), py = side * q[1], pz = q[2] - cz;
+    const u = px * Math.cos(th) + py * Math.sin(th);
+    const d = -px * Math.sin(th) + py * Math.cos(th);
+    const v = pz * Math.cos(ph) - d * Math.sin(ph);
+    const w = d * Math.cos(ph) + pz * Math.sin(ph);
+    const f = Dc / (Dc - w);
+    return [u * f, -v * f];
+  };
+}
+
+function placeExtras({ out, busy, area, lines, hyd, ink, kT, smoothPath }) {
+  const prj = perspective(lines), ol = lines.outline;
+  // everything the sketch draws, as [polyline, side, weight]
+  const items = [];
+  for (const side of [1, -1]) {
+    if (ol.sheer) items.push([ol.sheer, side, 'sheer']);
+    if (side > 0 && ol.stem) items.push([ol.stem, side, 'out']);
+    for (const k of ['keel', 'stern']) if (ol[k]) items.push([ol[k], side, 'hid']);
+    for (const st of lines.stations) for (const l of st.polylines) items.push([l, side, 'st']);
+    for (const w of lines.waterlines) if (w.isLWL) for (const l of w.polylines) items.push([l, side, 'lwl']);
+  }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [l, side] of items) for (const q of l) { const [x, y] = prj(q, side); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const pw = x1 - x0, ph = y1 - y0;
+  const TW = 62 * kT, TH = 52 * kT, wantTable = hyd && hyd.V > 0;
+  const capS = 8; // labels and padding around the sketch, mm
+  const sketchIn = (r) => Math.min((r[2] - r[0] - 4) / pw, (r[3] - r[1] - capS - 2) / ph);
+
+  // try each spot for the table (bottom-right of a free area), then fit the sketch around it
+  let best = null;
+  const base = freeRects(busy, area);
+  const tableSpots = wantTable ? base.filter((r) => r[2] - r[0] >= TW && r[3] - r[1] >= TH).map((r) => [r[2] - TW, r[3] - TH, r[2], r[3]]) : [];
+  for (const t of tableSpots.length ? tableSpots : [null]) {
+    const rects = t ? freeRects([...busy, t], area) : base;
+    let sk = null, k = 0;
+    for (const r of rects) { const kk = sketchIn(r); if (kk > k) { k = kk; sk = r; } }
+    // prefer the table close to the title block (low and to the right)
+    const score = k * (ph + pw) + (t ? (t[3] + t[2]) * 0.01 : 0);
+    if (!best || score > best.score) best = { score, t, sk, k };
+  }
+  if (!best) return { ok: false, n: 0 };
+  const status = { table: !!best.t || !wantTable, sketch: false };
+
+  if (best.t && wantTable) out.push(`<g transform="translate(${best.t[0].toFixed(2)} ${best.t[1].toFixed(2)}) scale(${kT.toFixed(4)})">${hullDataTable(lines.bounds, hyd, ink)}</g>`);
+
+  const k = best.k;
+  if (!best.sk || k * ph < 22) return { ...status, ok: false, n: +status.table }; // too little room for a useful sketch
+  status.sketch = true;
+  const r = best.sk, w = pw * k, h = ph * k;
+  const ox = (r[0] + r[2]) / 2 - w / 2 - x0 * k, oy = r[1] + (r[3] - r[1] - capS - h) / 2 - y0 * k;
+  const rnd = mulberry(1851);
+  const pencil = ink === '#000' ? '#2b2b2b' : '#3b342c';
+  const wobble = (pts, amp) => {
+    const a1 = rnd() * 6.28, a2 = rnd() * 6.28, b1 = rnd() * 6.28, b2 = rnd() * 6.28, n = pts.length;
+    const res = pts.map((p, i) => {
+      const t = i / Math.max(1, n - 1);
+      return [p[0] + amp * (0.7 * Math.sin(t * 5.1 + a1) + 0.3 * Math.sin(t * 13 + a2)), p[1] + amp * (0.7 * Math.sin(t * 4.3 + b1) + 0.3 * Math.sin(t * 11 + b2))];
+    });
+    // a pencil line overshoots its ends a little
+    if (n >= 2) for (const [i, j] of [[0, 1], [n - 1, n - 2]]) {
+      const dx = res[i][0] - res[j][0], dy = res[i][1] - res[j][1], d = Math.hypot(dx, dy) || 1, e = 0.4 + rnd() * 1.1;
+      res[i] = [res[i][0] + (dx / d) * e, res[i][1] + (dy / d) * e];
+    }
+    return res;
+  };
+  const paths = [];
+  const stroke = (d, wd, op) => d && paths.push(`<path d="${d}" fill="none" stroke="${pencil}" stroke-width="${wd}" stroke-opacity="${op}" stroke-linecap="round" stroke-linejoin="round"/>`);
+  const thin = (pts) => { const o = []; for (const p of pts) { const l = o[o.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 0.8) o.push(p); } return o; };
+  // far side first, faint, so the near side reads over it
+  for (const pass of [-1, 1]) for (const [l, side, kind] of items) {
+    if (side !== pass) continue;
+    const pts = thin(l.map((q) => { const [x, y] = prj(q, side); return [ox + x * k, oy + y * k]; }));
+    if (pts.length < 2) continue;
+    const far = side < 0;
+    if (kind === 'out' || kind === 'sheer') {
+      const w = far ? 0.22 : 0.32, op = far ? 0.65 : 0.9;
+      stroke(smoothPath(wobble(pts, 0.28)), w, op);
+      stroke(smoothPath(wobble(pts, 0.42)), 0.13, 0.5);
+    } else if (kind === 'hid') stroke(smoothPath(wobble(pts, 0.25)), 0.1, 0.2); else if (kind === 'lwl') stroke(smoothPath(wobble(pts, 0.3)), far ? 0.12 : 0.2, far ? 0.25 : 0.6);
+    else stroke(smoothPath(wobble(pts, 0.22)), far ? 0.08 : 0.16, far ? 0.14 : 0.6);
+  }
+  // a few strokes of water along the near side at the load waterline
+  const lwl = lines.waterlines.find((w) => w.isLWL);
+  if (lwl && lwl.polylines[0]) {
+    const l = lwl.polylines[0], n = l.length;
+    for (let i = 0; i < 9; i++) {
+      const q = l[Math.floor(((i + 0.5) / 9) * (n - 1))];
+      const [x, y] = prj(q, 1), X = ox + x * k, Y = oy + y * k + 1.2 + rnd() * 1.5, len = 2 + rnd() * 4;
+      stroke(`M${(X - len / 2).toFixed(2)},${Y.toFixed(2)}q${(len / 2).toFixed(2)},${(-0.4 - rnd() * 0.4).toFixed(2)} ${len.toFixed(2)},0`, 0.12, 0.45);
+    }
+  }
+  out.push(`<g class="sketch">${paths.join('')}</g>`);
+  const cy = oy + y1 * k + 6;
+  out.push(`<text x="${((r[0] + r[2]) / 2).toFixed(2)}" y="${cy.toFixed(2)}" font-size="3.2" text-anchor="middle" class="hand" fill="${ink}">perspective sketch · not to scale</text>`);
+  return { ...status, ok: status.table, n: 1 + status.table };
+}
+
+function hullDataTable(b, h, ink) {
+  const o = [], W = 62, rowH = 3.3;
+  const rows = [
+    ['LOA', `${b.L.toFixed(2)} m`], ['Beam (moulded)', `${(2 * b.B2).toFixed(2)} m`], ['Depth amidships', `${b.Hmid.toFixed(2)} m`], null,
+    ['LWL draught T', `${h.T.toFixed(2)} m`], ['Lwl × Bwl', `${h.Lwl.toFixed(1)} × ${h.Bwl.toFixed(2)} m`], ['Volume ∇', `${h.V.toFixed(1)} m³`],
+    ['Displacement Δ', `${h.disp.toFixed(1)} t (SW)`], ['LCB from aft', `${h.LCB.toFixed(2)} m`], null,
+    ['Block coefficient Cb', h.Cb.toFixed(3)], ['Prismatic Cp', h.Cp.toFixed(3)], ['Midship Cm', h.Cm.toFixed(3)], ['Waterplane Cwp', h.Cwp.toFixed(3)],
+  ];
+  const n = rows.filter(Boolean).length, gaps = rows.length - n;
+  const H = 7.5 + n * rowH + gaps * 1.2 + 1.5;
+  o.push(`<rect x="0" y="0" width="${W}" height="${H.toFixed(2)}" fill="none" stroke="${ink}" stroke-width="0.25"/>`);
+  o.push(`<text x="${W / 2}" y="4.6" font-size="3.3" text-anchor="middle" class="title" fill="${ink}" letter-spacing="0.5">HULL DATA</text>`);
+  o.push(`<line x1="0" y1="6.3" x2="${W}" y2="6.3" stroke="${ink}" stroke-width="0.2"/>`);
+  let y = 6.3 + 0.6;
+  for (const r of rows) {
+    if (!r) { o.push(`<line x1="2" y1="${(y + 0.6).toFixed(2)}" x2="${W - 2}" y2="${(y + 0.6).toFixed(2)}" stroke="${ink}" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>`); y += 1.2; continue; }
+    y += rowH;
+    o.push(`<text x="2" y="${(y - 0.8).toFixed(2)}" font-size="2.15" class="type" fill="${ink}">${r[0]}</text>`);
+    o.push(`<text x="${W - 2}" y="${(y - 0.8).toFixed(2)}" font-size="2.15" text-anchor="end" class="type" fill="${ink}">${r[1]}</text>`);
+  }
+  return o.join('');
 }

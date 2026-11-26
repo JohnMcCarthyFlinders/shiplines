@@ -3,7 +3,7 @@
 // y half-breadth (starboard +, centreplane = 0), z height above baseline.
 // Only the starboard half is modelled; the port side is its mirror image.
 
-import { TEMPLATES } from './templates.js?v=19';
+import { TEMPLATES } from './templates.js?v=20';
 
 export const NI = 11; // control rows along the hull (stern → bow)
 export const NJ = 7;  // control points per half-section (keel → sheer)
