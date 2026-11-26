@@ -29,7 +29,7 @@ python3 -m http.server 8000
 
 | Area | Features |
 |---|---|
-| **Presets** | Cargo ship (full, boxy); clipper ship after the *Flying Fish* lines (long hollow entrance and run, full deck line, counter stern); canoe; 18th-century warship in the manner of HMS *Victory* (low, broad, bluff bow, tumblehome, broad square stern); and a simple practice hull |
+| **Presets** | Cargo ship (full, boxy); clipper ship after the *Flying Fish* lines (long hollow entrance and run, full deck line, counter stern); canoe; 18th-century warship in the manner of HMS *Victory* (low, broad, bluff bow, tumblehome, broad square stern); a simple practice hull; and, as a joke, *The Pie Floater*, an upturned Adelaide meat pie (nearly round in plan, flat bottom, sides drawing in towards the top) |
 | **Shaping** | Click a handle and drag the gizmo. *Point*, *Section* and *Fore–aft row* selection modes, typed x/y/z coordinates, and undo/redo. Keel, stem and sternpost handles are locked to the centreplane. |
 | **Surface** | Catmull–Clark levels 0–4, with hologram, solid and **zebra** (reflection-stripe fairness check) shading. Control cage, wireframe, mirrored port side and LWL plane can each be toggled. |
 | **Lines (3D)** | Stations (gold), waterlines (cyan, LWL highlighted), buttock lines (magenta), diagonals (green), and profile and sheer (white). Each has its own colour; all share a common, adjustable thickness. Counts and spacing are adjustable. |

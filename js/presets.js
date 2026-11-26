@@ -3,7 +3,7 @@
 // y half-breadth (starboard +, centreplane = 0), z height above baseline.
 // Only the starboard half is modelled; the port side is its mirror image.
 
-import { TEMPLATES } from './templates.js?v=18';
+import { TEMPLATES } from './templates.js?v=19';
 
 export const NI = 11; // control rows along the hull (stern → bow)
 export const NJ = 7;  // control points per half-section (keel → sheer)
@@ -63,7 +63,34 @@ export const PRESETS = {
     stemRake: 0.6, stemShape: 'straight', sternRake: 0.6, transom: 0, cutUp: 0,
     tumble: 0, vName: 'Practice hull',
   },
+  pie: {
+    label: 'The Pie Floater', blurb: 'A joke, and Old Mouldy Lofterson’s pride: an Adelaide meat pie turned upside down. Nearly round in plan, a broad flat bottom and sides that draw in slightly towards the top. Very stable, not very streamlined.',
+    L: 12, B: 11, D: 4.2, vName: 'The Pie Floater', custom: 'pie',
+  },
 };
+
+// The Pie Floater: an upturned pie. Each control row is a radial "station" through the
+// centre of the pie; the flat bottom runs out to the chine and the sides lean in a little,
+// like the tin-shaped base of a pie with the lid underneath.
+function makePie(P) {
+  const Rx = P.L / 2, Ry = P.B / 2, D = P.D, k = 1.07; // k offsets the B-spline shrinkage
+  const r = [0, 0.5, 0.86, 1.0, 0.975, 0.945, 0.915]; // radius at each control point, as a fraction
+  const z = [0, 0, 0, 0.07, 0.4, 0.74, 1].map((f) => f * D);
+  const bottom = [0, 0.5, 0.86];                    // j = 0..2 lie on the flat bottom
+  const pts = [];
+  for (let i = 0; i < NI; i++) {
+    const ph = (Math.PI * i) / (NI - 1);             // stern (0) round to bow (π)
+    const row = [];
+    for (let j = 0; j < NJ; j++) {
+      const rr = j < 3 ? 1 : r[j];                   // fore-and-aft position follows the chine on the bottom
+      const x = Rx - Rx * rr * Math.cos(ph);
+      const y = i === 0 || i === NI - 1 ? 0 : k * Ry * (j < 3 ? bottom[j] : r[j]) * Math.sin(ph);
+      row.push({ x, y, z: z[j] });
+    }
+    pts.push(row);
+  }
+  return { version: 1, preset: 'pie', type: P.label, name: P.vName, ni: NI, nj: NJ, pts, sternClosed: true };
+}
 
 // Quarter superellipse from keel (0, k) to sheer (b, H), resampled at equal arc length.
 function sectionPoints(b, k, H, n, count) {
@@ -108,6 +135,7 @@ function stemShift(P, s) {
 
 export function makePreset(key) {
   const P = PRESETS[key];
+  if (P.custom === 'pie') return makePie(P);
   const T = TEMPLATES[key];
   if (T) {
     // hand-faired template
