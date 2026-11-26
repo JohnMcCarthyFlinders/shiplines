@@ -308,6 +308,7 @@ body.trace-blank .hud-data { display: none; }
 .wright-say blockquote { margin: 0; position: relative; background: #f4ecd8; color: #2a241c; padding: 12px 14px 10px; font: 400 15.5px/1.45 Georgia, 'Times New Roman', serif; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.35); text-align: left; }
 .wright-say blockquote::before { content: ''; position: absolute; left: -9px; top: 26px; border: 9px solid transparent; border-left: 0; border-right-color: #f4ecd8; }
 .wright-say cite { display: block; margin-top: 6px; font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: #7a5a2a; font-style: normal; }
+.wright-say cite.about { font: 500 13px/1.45 var(--ui); letter-spacing: 0; text-transform: none; color: #5d4a2c; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(122, 90, 42, .3); }
 .game .wright { width: 84px; height: 84px; }
 .wright-mini { margin: 2px 0 10px; gap: 10px; }
 .game .wright-mini .wright { width: 54px; height: 54px; }

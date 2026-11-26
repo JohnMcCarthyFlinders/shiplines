@@ -1,11 +1,11 @@
 // Phone tour: a light, mostly read-only introduction to lines plans that ends by
 // sending the reader to a computer for the full Shiplines tool.
 
-import { makePreset, PRESETS } from './presets.js?v=17';
-import { gridFromCage, subdivide } from './subdiv.js?v=17';
-import { computeLines } from './lines.js?v=17';
-import { renderDrawing } from './drawing2d.js?v=17';
-import { SHIPWRIGHT_SVG, SHIPWRIGHT } from './game.js?v=17';
+import { makePreset, PRESETS } from './presets.js?v=18';
+import { gridFromCage, subdivide } from './subdiv.js?v=18';
+import { computeLines } from './lines.js?v=18';
+import { renderDrawing } from './drawing2d.js?v=18';
+import { SHIPWRIGHT_SVG, SHIPWRIGHT } from './game.js?v=18';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -16,7 +16,7 @@ const SAYS = [
   'Steffy was a careful man, and a tidy drawing is half the battle. Get the conventions right and anyone can read your lines.',
   'That’s the tour, so. The real learning is at the board: shaping a hull yourself, fairing it and drawing its lines. Get yourself in front of a computer and come back to me at the Mould Loft. I’ll have the challenge waiting.',
 ];
-for (const el of $$('[data-say]')) el.innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SAYS[+el.dataset.say])}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
+for (const el of $$('[data-say]')) el.innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SAYS[+el.dataset.say])}${+el.dataset.say === 0 ? `<cite class="about">${SHIPWRIGHT.about}</cite>` : `<cite>${SHIPWRIGHT.name}</cite>`}</blockquote>`;
 
 // ---------------------------------------------------------------- lines figures
 const cache = {};
@@ -91,7 +91,7 @@ cards.forEach((c) => io.observe(c));
 // ---------------------------------------------------------------- slowly turning 3D hull (look, don't touch)
 (async () => {
   try {
-    const { Viewer3D } = await import('./viewer3d.js?v=17');
+    const { Viewer3D } = await import('./viewer3d.js?v=18');
     const v = new Viewer3D($('#hero'), {});
     const cage = makePreset('clipper');
     v.convention = 'steffy';

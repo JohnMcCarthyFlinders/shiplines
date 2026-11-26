@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=17';
-import { gridFromCage, subdivide } from './subdiv.js?v=17';
-import { computeLines, hydrostatics } from './lines.js?v=17';
-import { renderDrawing } from './drawing2d.js?v=17';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=18';
+import { gridFromCage, subdivide } from './subdiv.js?v=18';
+import { computeLines, hydrostatics } from './lines.js?v=18';
+import { renderDrawing } from './drawing2d.js?v=18';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -26,7 +26,9 @@ export const gradeFor = (s) => GRADES.find(([min]) => s >= min)[1];
 
 // ---------------------------------------------------------------- Mouldy Lofterson, the old shipwright
 export const SHIPWRIGHT = {
-  name: 'Mouldy Lofterson, who lives in the Mount Lofty Mould Loft',
+  name: 'Old Mouldy Lofterson, who lives and works in the Mount Lofty Mould Loft on Kaurna Country',
+  // the fuller introduction, shown on the opening screen and the start of the phone tour
+  about: 'Old Mouldy Lofterson, who lives and works in the Mount Lofty Mould Loft on Kaurna Country. A mould loft is a large, open floor or building where shipbuilders and aircraft makers draw design lines at full size to make moulds, patterns and templates for structural parts. Lofterson designed his famous ship <i>The Pie Floater</i> here, a stable vessel although it was not very streamlined.',
   welcome: 'Well, hello there. I’m Mouldy Lofterson, and I live up in the Mount Lofty Mould Loft. Are you here to test yourself against the old trade, or would you rather have a look around the loft first?',
   rounds: [
     'Come in, come in. You’ll be the new hand, so. Before you go near a batten I want to see do you know your lines. I’ll put a light on one of them, and you tell me what it is and which plan shows its true shape. There’s a drawing beside you there if you need it.',
@@ -408,7 +410,7 @@ export function initGame(api) {
 
   // welcome screen: test your skills, or explore
   const welcome = $('#welcome');
-  welcome.querySelector('.w-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.welcome)}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
+  welcome.querySelector('.w-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.welcome)}<cite class="about">${SHIPWRIGHT.about}</cite></blockquote>`;
   $('#w-test').addEventListener('click', intro);
   $('#w-explore').addEventListener('click', () => (welcome.hidden = true));
   $('#w-guide').addEventListener('click', () => { welcome.hidden = true; $('#help').hidden = false; });
