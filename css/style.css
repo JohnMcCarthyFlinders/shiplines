@@ -302,7 +302,7 @@ body.trace-blank .hud-data { display: none; }
 .touch-warn button { background: var(--navy); color: var(--gold); border: 0; padding: 3px 9px; cursor: pointer; }
 
 /* shipwright, welcome, reference card */
-.wright { width: 96px; height: 96px; flex: none; filter: drop-shadow(0 0 10px rgba(255, 211, 0, .18)); }
+.wright { width: 96px; height: 96px; flex: none; border-radius: 50%; border: 2.5px solid var(--gold); object-fit: cover; box-shadow: 0 0 10px rgba(255, 211, 0, .18); }
 .wright-say { display: flex; gap: 14px; align-items: flex-start; margin: 4px 0 12px; }
 .wright-say blockquote { margin: 0; position: relative; background: #f4ecd8; color: #2a241c; padding: 12px 14px 10px; font: 400 15.5px/1.45 Georgia, 'Times New Roman', serif; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.35); text-align: left; }
 .wright-say blockquote::before { content: ''; position: absolute; left: -9px; top: 26px; border: 9px solid transparent; border-left: 0; border-right-color: #f4ecd8; }
@@ -313,11 +313,17 @@ body.trace-blank .hud-data { display: none; }
 .wright-mini blockquote { font-size: 14px; padding: 8px 11px; }
 .wright-mini blockquote::before { top: 16px; }
 .r-say { margin: 0 0 14px; }
-.welcome-box { width: min(820px, 94vw); text-align: center; padding: 26px 32px 22px; }
+.welcome-box { width: min(1080px, 95vw); display: grid; grid-template-columns: minmax(260px, 400px) 1fr; padding: 0; text-align: center; overflow: hidden; }
+.w-portrait { background: #e9dfc6; display: flex; align-items: center; }
+.w-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.w-main { padding: 26px 28px 20px; display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 860px) { .welcome-box { grid-template-columns: 1fr; } .w-portrait { max-height: 34vh; } .w-portrait img { object-position: 50% 20%; } }
 .w-brand span { display: block; font: 600 11.5px var(--mono); letter-spacing: 2.5px; color: #a9c4e0; }
 .w-brand strong { display: block; font: 700 46px/1 var(--ui); letter-spacing: 10px; color: #fff; margin: 6px 0 2px; text-shadow: 0 0 24px rgba(61, 232, 255, .25); }
 .w-brand em { font-style: normal; color: var(--gold); letter-spacing: 1.5px; }
-.welcome-box .w-say { margin: 20px auto 18px; max-width: 620px; }
+.welcome-box .w-say { margin: 18px auto 16px; max-width: 620px; }
+.welcome-box .w-say .wright { display: none; }
+.welcome-box .w-say blockquote::before { display: none; }
 .w-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .w-card { text-align: left; padding: 16px 18px; cursor: pointer; border: 1px solid rgba(61,232,255,.35); background: rgba(0, 47, 96, .55); color: #e6f0fa; transition: .15s; }
 .w-card i { font-style: normal; font-size: 26px; display: block; margin-bottom: 4px; }

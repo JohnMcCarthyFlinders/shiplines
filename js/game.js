@@ -1,5 +1,5 @@
 // Play mode: four scored rounds that test understanding of a lines plan,
-// introduced by Lofty Lofterson of the Mt Lofty Mould Loft, ending with a certificate drawn on the
+// introduced by Mouldy Lofterson of the Mount Lofty Mould Loft, ending with a certificate drawn on the
 // student's own lines plan.
 //
 //   1  Know your lines        (20)  identify a highlighted line and the plan that shows its true shape
@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=15';
-import { gridFromCage, subdivide } from './subdiv.js?v=15';
-import { computeLines, hydrostatics } from './lines.js?v=15';
-import { renderDrawing } from './drawing2d.js?v=15';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=16';
+import { gridFromCage, subdivide } from './subdiv.js?v=16';
+import { computeLines, hydrostatics } from './lines.js?v=16';
+import { renderDrawing } from './drawing2d.js?v=16';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -24,10 +24,10 @@ export const GRADES = [
 ];
 export const gradeFor = (s) => GRADES.find(([min]) => s >= min)[1];
 
-// ---------------------------------------------------------------- Lofty Lofterson, the old shipwright
+// ---------------------------------------------------------------- Mouldy Lofterson, the old shipwright
 export const SHIPWRIGHT = {
-  name: 'Lofty Lofterson · Mt Lofty Mould Loft',
-  welcome: 'Well, hello there. Lofty Lofterson, of the Mt Lofty Mould Loft. Are you here to test yourself against the old trade, or would you rather have a look around the loft first?',
+  name: 'Mouldy Lofterson, who lives in the Mount Lofty Mould Loft',
+  welcome: 'Well, hello there. I’m Mouldy Lofterson, and I live up in the Mount Lofty Mould Loft. Are you here to test yourself against the old trade, or would you rather have a look around the loft first?',
   rounds: [
     'Come in, come in. You’ll be the new hand, so. Before you go near a batten I want to see do you know your lines. I’ll put a light on one of them, and you tell me what it is and which plan shows its true shape. There’s a drawing beside you there if you need it.',
     'Fair play to you. Now, Steffy had a tidy way of naming sections, and I’ll hold you to it: letters forward of the midship section, A, B, C, and numbers aft of it, 1, 2, 3. The bow is to the left, mind. Tell me the name of the section I’m showing you.',
@@ -43,28 +43,8 @@ export const SHIPWRIGHT = {
   },
 };
 
-// Bald, with a solid, tidy ginger beard.
-export const SHIPWRIGHT_SVG = `<svg viewBox="0 0 120 120" class="wright" aria-hidden="true">
-  <defs><clipPath id="wr-c"><circle cx="60" cy="60" r="56"/></clipPath>
-  <radialGradient id="wr-bg" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#0d4a86"/><stop offset="1" stop-color="#001d3d"/></radialGradient></defs>
-  <circle cx="60" cy="60" r="58" fill="url(#wr-bg)" stroke="#FFD300" stroke-width="2.5"/>
-  <g clip-path="url(#wr-c)">
-    <path d="M14 120 Q18 92 44 86 L76 86 Q102 92 106 120 Z" fill="#2b3a4a"/>
-    <path d="M44 86 L60 104 L76 86 Z" fill="#e9e2d0"/>
-    <path d="M30 98 L38 120 M90 98 L82 120" stroke="#7a4b23" stroke-width="5"/>
-    <ellipse cx="33" cy="58" rx="6" ry="9" fill="#e7ad86"/><ellipse cx="87" cy="58" rx="6" ry="9" fill="#e7ad86"/>
-    <path d="M33 54 Q33 22 60 20 Q87 22 87 54 L87 70 Q87 88 60 92 Q33 88 33 70 Z" fill="#f0bd95"/>
-    <ellipse cx="50" cy="29" rx="11" ry="5" fill="#fff" opacity=".35" transform="rotate(-18 50 29)"/>
-    <path d="M42 50 Q48 46 54 49 M66 49 Q72 46 78 50" stroke="#b5541f" stroke-width="3.2" stroke-linecap="round" fill="none"/>
-    <circle cx="48" cy="56" r="2.4" fill="#1d1a18"/><circle cx="72" cy="56" r="2.4" fill="#1d1a18"/>
-    <path d="M44 61 Q48 63 52 61 M68 61 Q72 63 76 61" stroke="#c98b67" stroke-width="1" fill="none"/>
-    <path d="M60 56 Q57 66 55 69 Q60 72 65 69 Q63 66 60 56" fill="#e09a74"/>
-    <path d="M34 64 Q34 80 40 88 Q48 99 60 100 Q72 99 80 88 Q86 80 86 64 Q84 72 78 74 Q70 72 60 74 Q50 72 42 74 Q36 72 34 64 Z" fill="#c4622d"/>
-    <path d="M46 73 Q53 68 60 71 Q67 68 74 73 Q67 76 60 74 Q53 76 46 73 Z" fill="#a94e20"/>
-    <path d="M54 79 Q60 82 66 79" stroke="#7d3412" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-    <path d="M42 82 Q46 90 52 94 M60 86 L60 97 M78 82 Q74 90 68 94" stroke="#a94e20" stroke-width="1.2" fill="none" opacity=".8"/>
-  </g>
-</svg>`;
+// Portrait by John McCarthy: bald, with a solid, tidy ginger beard.
+export const SHIPWRIGHT_SVG = '<img class="wright" src="assets/lofterson-face.jpg" alt="Mouldy Lofterson" width="256" height="256">';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];

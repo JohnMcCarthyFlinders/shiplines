@@ -82,7 +82,7 @@ Import what survives of a wreck and fit the hull to it.
 
 The opening screen offers two choices. **Test your skills** starts the challenge, and **Explore ship lines** goes straight to the tool. The ▶ PLAY button and the gold side-panel card also start the challenge.
 
-Lofty Lofterson, the old shipwright of the Mt Lofty Mould Loft, introduces each round. The challenge has four rounds and 100 points:
+Mouldy Lofterson, the old shipwright who lives in the Mount Lofty Mould Loft, introduces each round. His portrait is by John McCarthy. The challenge has four rounds and 100 points:
 
 1. **Know your lines (20).** A line flashes on the hull. Say whether it is a station, waterline, buttock or diagonal, and which plan shows its true shape. A reference lines drawing of the same hull is beside the questions; after each answer the line is shown in red in all three plans.
 2. **Steffy’s labels (15).** A section flashes in profile. Give its Steffy label: A, B, C forward or 1, 2, 3 aft of midships.

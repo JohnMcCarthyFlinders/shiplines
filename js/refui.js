@@ -5,9 +5,9 @@ import {
   viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
   parsePoints, parseOBJ, localize, alignLocal, normAlign, decimateIdx, boundsOf,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=15';
+} from './reference.js?v=16';
 import * as THREE from 'three';
-import { gridFromCage, subdivide } from './subdiv.js?v=15';
+import { gridFromCage, subdivide } from './subdiv.js?v=16';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -216,11 +216,43 @@ export function initReference(ctx) {
     syncEV();
     ctx.schedule(true);
   }
+  // Guess orientation and scale for a fresh import: up = the shallowest of Y and Z, the long
+  // horizontal axis turned fore-and-aft, and units brought into proportion with the hull.
+  function autoPlace(ev) {
+    const parts = [ev.rawPts, ev.rawMesh && ev.rawMesh.pos].filter((a) => a && a.length);
+    const n = parts.reduce((m, a) => m + a.length / 3, 0), step = Math.max(1, Math.floor(n / 40000));
+    const raw = []; let k = 0;
+    for (const a of parts) for (let i = 0; i < a.length; i += 3, k++) if (k % step === 0) raw.push(a[i], a[i + 1], a[i + 2]);
+    const rb = boundsOf(raw), ext = [rb[3] - rb[0], rb[4] - rb[1], rb[5] - rb[2]];
+    const up = ext[1] < ext[2] ? 'y' : 'z';
+    const L = localize(raw, up);
+    let mx = 0, mz = 0; const m = L.length / 3;
+    for (let i = 0; i < L.length; i += 3) { mx += L[i]; mz += L[i + 2]; }
+    mx /= m; mz /= m;
+    let cxx = 0, czz = 0, cxz = 0;
+    for (let i = 0; i < L.length; i += 3) { const x = L[i] - mx, z = L[i + 2] - mz; cxx += x * x; czz += z * z; cxz += x * z; }
+    const th = 0.5 * Math.atan2(2 * cxz, cxx - czz);         // long axis, measured from X towards Z
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < L.length; i += 3) { const t = (L[i] - mx) * Math.cos(th) + (L[i + 2] - mz) * Math.sin(th); lo = Math.min(lo, t); hi = Math.max(hi, t); }
+    const len = Math.max(1e-9, hi - lo), hullL = ctx.lines().bounds.L, r = len / hullL;
+    let scale = 1, unit = '';
+    if (r < 0.15 || r > 1.5) {
+      const units = [[0.001, 'millimetres'], [0.01, 'centimetres'], [0.1, 'decimetres'], [10, ''], [100, ''], [1000, '']];
+      const ok = units.filter(([f]) => r * f >= 0.15 && r * f <= 1.5).sort((a, b) => Math.abs(Math.log(r * a[0] / 0.6)) - Math.abs(Math.log(r * b[0] / 0.6)));
+      if (ok.length) { scale = ok[0][0]; unit = ok[0][1] ? ` (looks like ${ok[0][1]})` : ''; }
+      else scale = (0.7 * hullL) / len;
+    }
+    ev.align = { ...ev.align, up, scale, q: [0, Math.sin(th / 2), 0, Math.cos(th / 2)] };
+    const turned = Math.round((th * 180) / Math.PI);
+    return `Placed on the hull: ${up.toUpperCase()} up` + (turned ? `, turned ${Math.abs(turned)}° to lie fore-and-aft` : '') + (scale !== 1 ? `, scaled ×${+scale.toPrecision(3)}${unit}` : ', true scale') + '. Fine-tune with the gizmo.';
+  }
   function setEvidence(rawPts, rawMesh, label, shipCoords = false) {
     const keep = R.ev && R.ev.align;
     R.ev = { rawPts: rawPts || (R.ev && R.ev.rawPts) || null, rawMesh: rawMesh || (R.ev && R.ev.rawMesh) || null, align: keep ? { ...keep, q: [0, 0, 0, 1] } : normAlign(null), label };
     $('#ev-align').open = true;
+    const note = shipCoords ? null : autoPlace(R.ev);
     buildEvidence();
+    if (note) ctx.toast(note);
     if (shipCoords) { const c = R.ev.c.v; Object.assign(R.ev.align, { dx: c[0], dy: c[2], dz: c[1] }); applyAlign(); }
     else centreOnHull();
   }
@@ -261,11 +293,11 @@ export function initReference(ctx) {
   $('#ev-obj').addEventListener('click', () => $('#ev-file-obj').click());
   $('#ev-file-pts').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    readFile(f, (t) => { const p = parsePoints(t); if (!p.length) { ctx.toast('No x, y, z points found in that file'); return; } setEvidence(p, null, f.name); ctx.toast(`${(p.length / 3).toLocaleString()} points imported`); });
+    readFile(f, (t) => { const p = parsePoints(t); if (!p.length) { ctx.toast('No x, y, z points found in that file'); return; } setEvidence(p, null, f.name); });
   });
   $('#ev-file-obj').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    readFile(f, (t) => { const m = parseOBJ(t); if (!m.pos.length) { ctx.toast('No faces found in that OBJ'); return; } setEvidence(null, m, f.name); R.ev.dropped = m.dropped; readout(); ctx.toast(`Mesh imported: ${(m.idx.length / 3).toLocaleString()} triangles` + (m.dropped ? ` · ${m.dropped.toLocaleString()} loose vertices (not part of any face) ignored` : '')); });
+    readFile(f, (t) => { const m = parseOBJ(t); if (!m.pos.length) { ctx.toast('No faces found in that OBJ'); return; } setEvidence(null, m, f.name); R.ev.dropped = m.dropped; readout(); if (m.dropped) setTimeout(() => ctx.toast(`${m.dropped.toLocaleString()} loose vertices (not part of any face) were ignored`), 2600); });
   });
   $('#ev-sample').addEventListener('click', () => {
     const w = sampleWreck();

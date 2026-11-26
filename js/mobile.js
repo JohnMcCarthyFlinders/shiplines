@@ -1,18 +1,18 @@
 // Phone tour: a light, mostly read-only introduction to lines plans that ends by
 // sending the reader to a computer for the full Shiplines tool.
 
-import { makePreset, PRESETS } from './presets.js?v=15';
-import { gridFromCage, subdivide } from './subdiv.js?v=15';
-import { computeLines } from './lines.js?v=15';
-import { renderDrawing } from './drawing2d.js?v=15';
-import { SHIPWRIGHT_SVG, SHIPWRIGHT } from './game.js?v=15';
+import { makePreset, PRESETS } from './presets.js?v=16';
+import { gridFromCage, subdivide } from './subdiv.js?v=16';
+import { computeLines } from './lines.js?v=16';
+import { renderDrawing } from './drawing2d.js?v=16';
+import { SHIPWRIGHT_SVG, SHIPWRIGHT } from './game.js?v=16';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const SAYS = [
-  'Lofty Lofterson, of the Mt Lofty Mould Loft. Ah, you’ve come in on a phone. Shiplines is a drawing-board job, and you’ll want a proper screen and a mouse for the shaping. But come in anyway and I’ll give you the tour.',
+  'I’m Mouldy Lofterson, and I live up in the Mount Lofty Mould Loft. Ah, you’ve come in on a phone. Shiplines is a drawing-board job, and you’ll want a proper screen and a mouse for the shaping. But come in anyway and I’ll give you the tour.',
   'Steffy was a careful man, and a tidy drawing is half the battle. Get the conventions right and anyone can read your lines.',
   'That’s the tour, so. The real learning is at the board: shaping a hull yourself, fairing it and drawing its lines. Get yourself in front of a computer and come back to me at the Mould Loft. I’ll have the challenge waiting.',
 ];
@@ -91,7 +91,7 @@ cards.forEach((c) => io.observe(c));
 // ---------------------------------------------------------------- slowly turning 3D hull (look, don't touch)
 (async () => {
   try {
-    const { Viewer3D } = await import('./viewer3d.js?v=15');
+    const { Viewer3D } = await import('./viewer3d.js?v=16');
     const v = new Viewer3D($('#hero'), {});
     const cage = makePreset('clipper');
     v.convention = 'steffy';

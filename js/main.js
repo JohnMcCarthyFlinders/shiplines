@@ -1,12 +1,12 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=15';
-import { gridFromCage, subdivide } from './subdiv.js?v=15';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=15';
-import { Viewer3D } from './viewer3d.js?v=15';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=15';
-import { initGame } from './game.js?v=15';
-import { initReference } from './refui.js?v=15';
-import { initTrace } from './traceui.js?v=15';
-import { loftGrid } from './loft.js?v=15';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=16';
+import { gridFromCage, subdivide } from './subdiv.js?v=16';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=16';
+import { Viewer3D } from './viewer3d.js?v=16';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=16';
+import { initGame } from './game.js?v=16';
+import { initReference } from './refui.js?v=16';
+import { initTrace } from './traceui.js?v=16';
+import { loftGrid } from './loft.js?v=16';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -308,7 +308,7 @@ function loadJSON(file) {
 }
 
 // ------------------------------------------------------------------ UI wiring
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), Math.max(1800, msg.length * 55)); }
 function seg(sel, attr, fn) {
   $(sel).addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;

@@ -19,7 +19,7 @@
   } catch (e) { /* keep the full tool */ }
 })();
 </script>
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="stylesheet" href="css/style.css?v=16">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -237,7 +237,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 2.1 · 26 Nov 2026</span></footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 2.2 · 26 Nov 2026</span></footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -331,13 +331,16 @@
 
 <div class="modal" id="welcome" hidden>
   <div class="modal-box welcome-box">
+    <div class="w-portrait"><img src="assets/lofterson.jpg" alt="Mouldy Lofterson at his drawing board in the Mount Lofty Mould Loft" width="768" height="768"></div>
+    <div class="w-main">
     <div class="w-brand"><span>FLINDERS UNIVERSITY · MARITIME ARCHAEOLOGY PROGRAM</span><strong>SHIPLINES</strong><em>hull lines lab · made by John McCarthy</em></div>
     <div class="w-say wright-say"></div>
     <div class="w-choices">
-      <button class="w-card w-test" id="w-test"><i>⚓</i><b>Test your skills</b><small>Four rounds with Lofty Lofterson of the Mt Lofty Mould Loft: read the lines, name the sections, shape a hull and fair it. Earn a certificate on a traditional lines plan.</small></button>
+      <button class="w-card w-test" id="w-test"><i>⚓</i><b>Test your skills</b><small>Four rounds with Mouldy Lofterson of the Mount Lofty Mould Loft: read the lines, name the sections, shape a hull and fair it. Earn a certificate on a traditional lines plan.</small></button>
       <button class="w-card w-explore" id="w-explore"><i>✎</i><b>Explore ship lines</b><small>Shape hulls freely, watch the stations, waterlines and buttocks, check fairness with the Zebra view, and draw a traditional lines plan.</small></button>
     </div>
     <button class="w-guide" id="w-guide">or read the guide first</button>
+    </div>
   </div>
 </div>
 
@@ -378,6 +381,6 @@
 
 <div class="toast" id="toast"></div>
 <div class="touch-warn" id="touch-warn">💻 <b>Shiplines works best on a computer</b> with a mouse and a wide screen. <a href="mobile.html">Take the phone tour</a> <button onclick="this.parentNode.remove()" aria-label="Dismiss">✕</button></div>
-<script type="module" src="js/main.js?v=15"></script>
+<script type="module" src="js/main.js?v=16"></script>
 </body>
 </html>
