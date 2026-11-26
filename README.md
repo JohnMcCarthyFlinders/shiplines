@@ -4,7 +4,7 @@
 
 Shiplines is a browser-based teaching tool for ship hull lines. Students shape a hull by dragging the handles of a control cage. A Catmull–Clark subdivision surface turns the cage into a smooth hull, as Blender's *Subdivision Surface* modifier does at level 2. Waterlines, buttock lines, stations and diagonals are sliced from that surface live. One click turns the hull into a traditional lines drawing (sheer, half-breadth and body plans) on an aged drafting sheet at a true scale.
 
-The 2D drawing follows the conventions of J. R. Steffy (*Wooden Ship Building and the Interpretation of Shipwrecks*, 1994), as taught in F. Castro's lines-drawing course at the Nautical Archaeology Digital Library:
+The 2D drawing follows the conventions of [J. R. Steffy](https://en.wikipedia.org/wiki/J._Richard_Steffy) (*Wooden Ship Building and the Interpretation of Shipwrecks*, 1994), as taught in F. Castro's lines-drawing course at the Nautical Archaeology Digital Library:
 
 - bow to the left
 - plans titled **Sheer**, **Body** and **Half-Breadth**

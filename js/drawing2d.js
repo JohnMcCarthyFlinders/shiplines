@@ -326,7 +326,8 @@ function drawSheet(lines, meta, opts = {}) {
       R(cx, rowY + r * rowH, w, rowH);
       const [k, v] = fields[r * 4 + c];
       small.push(`<text x="${f2(cx + 1.2)}" y="${f2(rowY + r * rowH + 2.6)}" font-size="1.7" class="type" fill="${ink}">${k}</text>`);
-      small.push(`<text x="${f2(cx + 1.2)}" y="${f2(rowY + r * rowH + rowH - 1.6)}" font-size="2.6" class="type" fill="${ink}">${esc(v)}</text>`);
+      const vt = `<text x="${f2(cx + 1.2)}" y="${f2(rowY + r * rowH + rowH - 1.6)}" font-size="2.6" class="type" fill="${ink}">${esc(v)}</text>`;
+      small.push(k === 'CONVENTION' && steffy ? `<a href="https://en.wikipedia.org/wiki/J._Richard_Steffy" target="_blank"><title>J. Richard Steffy on Wikipedia</title>${vt}</a>` : vt);
       cx += w;
     }
   }

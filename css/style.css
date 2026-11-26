@@ -360,3 +360,8 @@ body.playing .hud-data { top: 26px; }
 @media print {
   body > *:not(.print-only) { display: none !important; }
 }
+
+/* links to background reading, e.g. Steffy on Wikipedia */
+a.wiki { color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+a.wiki:hover { color: var(--gold); text-decoration-style: solid; }
+.wright-say a.wiki:hover, .say a.wiki:hover { color: #8a5a00; }

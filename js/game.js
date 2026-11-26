@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=24';
-import { gridFromCage, subdivide } from './subdiv.js?v=24';
-import { computeLines, hydrostatics } from './lines.js?v=24';
-import { renderDrawing } from './drawing2d.js?v=24';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=25';
+import { gridFromCage, subdivide } from './subdiv.js?v=25';
+import { computeLines, hydrostatics } from './lines.js?v=25';
+import { renderDrawing } from './drawing2d.js?v=25';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -53,6 +53,9 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// every mention of Steffy in running text links to his Wikipedia page
+export const STEFFY_URL = 'https://en.wikipedia.org/wiki/J._Richard_Steffy';
+export const wiki = (html) => html.replace(/(?<![\w/])Steffy(?!\w|<\/a>)/g, `<a class="wiki" href="${STEFFY_URL}" target="_blank" rel="noopener" title="J. Richard Steffy (1924–2007), nautical archaeologist: Wikipedia">Steffy</a>`);
 
 const LINE_INFO = {
   station: { name: 'Station (section)', plan: 'Body plan', why: 'A station is a vertical, transverse slice across the hull. Its true shape is the curve in the <b>body plan</b>; in the sheer and half-breadth plans it is a straight line.' },
@@ -109,7 +112,7 @@ export function initGame(api) {
   }
   function ask(r, qLabel, question, options, correct, why, onAnswer) {
     return new Promise((resolve) => {
-      render(`${header(r, qLabel)}<p class="g-text">${question}</p>
+      render(`${header(r, qLabel)}<p class="g-text">${wiki(question)}</p>
         <div class="g-opts">${options.map((o, i) => `<button data-i="${i}">${esc(o)}</button>`).join('')}</div>
         <div class="g-fb" hidden></div>`);
       panel.querySelectorAll('.g-opts button').forEach((b) => b.addEventListener('click', () => {
@@ -119,7 +122,7 @@ export function initGame(api) {
         onAnswer?.(ok);
         const fb = panel.querySelector('.g-fb');
         fb.hidden = false;
-        fb.innerHTML = `<p><b class="${ok ? 'ok' : 'no'}">${ok ? '✓ Correct' : '✗ Not quite'}</b> ${why}</p><button class="g-next">Next ▸</button>`;
+        fb.innerHTML = `<p><b class="${ok ? 'ok' : 'no'}">${ok ? '✓ Correct' : '✗ Not quite'}</b> ${wiki(why)}</p><button class="g-next">Next ▸</button>`;
         fb.querySelector('.g-next').addEventListener('click', () => resolve(ok));
       }, { once: true }));
     });
@@ -127,7 +130,7 @@ export function initGame(api) {
   // the shipwright introduces a round
   function say(r, text) {
     return new Promise((resolve) => {
-      render(`${header(r)}<div class="wright-say">${SHIPWRIGHT_SVG}<blockquote>${esc(text)}<cite>${SHIPWRIGHT.name}</cite></blockquote></div>
+      render(`${header(r)}<div class="wright-say">${SHIPWRIGHT_SVG}<blockquote>${wiki(esc(text))}<cite>${SHIPWRIGHT.name}</cite></blockquote></div>
         <div class="g-foot"><span></span><button class="g-go" id="g-ready">Go on so ▸</button></div>`);
       panel.querySelector('#g-ready').addEventListener('click', resolve);
     });
@@ -272,7 +275,7 @@ export function initGame(api) {
         api.viewer.setHighlight(sc.mid.polylines);
         api.viewer.setGhost(tMid.polylines);
         render(`${header(2)}
-          <div class="wright-say wright-mini">${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.rounds[2])}</blockquote></div>
+          <div class="wright-say wright-mini">${SHIPWRIGHT_SVG}<blockquote>${wiki(esc(SHIPWRIGHT.rounds[2]))}</blockquote></div>
           <p class="g-text">Drag the four <b class="c-handle">orange handles</b> of the midship control section until the <b class="hl">flashing white</b> section lies on the owner’s <b class="gold">dashed gold</b> target.</p>
           <div class="g-spec">
             <div><span>Match</span><b>${Math.round(sc.m * 100)}%</b><em>${sc.m > 0.95 ? 'spot on' : sc.m > 0.75 ? 'close' : 'keep going'}</em>${meter(sc.m)}</div>
@@ -383,7 +386,7 @@ export function initGame(api) {
     m.querySelector('.r-score').innerHTML = `${total}<small>/100</small>`;
     m.querySelector('.r-grade').textContent = grade;
     m.querySelector('.r-name').textContent = run.student;
-    m.querySelector('.r-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.verdict[grade])}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
+    m.querySelector('.r-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${wiki(esc(SHIPWRIGHT.verdict[grade]))}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
     m.querySelector('.r-rows').innerHTML = run.scores.map((s, i) => `<div><span>${i + 1} · ${ROUNDS[i].title}</span><b>${Math.round(s)} / ${ROUNDS[i].max}</b><div class="bar"><i style="width:${(s / ROUNDS[i].max) * 100}%"></i></div></div>`).join('');
     m.hidden = false;
     try { const best = +localStorage.getItem('shiplines.best') || 0; if (total > best) localStorage.setItem('shiplines.best', total); } catch { /* storage unavailable */ }

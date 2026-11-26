@@ -1,12 +1,12 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=24';
-import { gridFromCage, subdivide } from './subdiv.js?v=24';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=24';
-import { Viewer3D } from './viewer3d.js?v=24';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=24';
-import { initGame } from './game.js?v=24';
-import { initReference } from './refui.js?v=24';
-import { initTrace } from './traceui.js?v=24';
-import { loftGrid } from './loft.js?v=24';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=25';
+import { gridFromCage, subdivide } from './subdiv.js?v=25';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=25';
+import { Viewer3D } from './viewer3d.js?v=25';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=25';
+import { initGame } from './game.js?v=25';
+import { initReference } from './refui.js?v=25';
+import { initTrace } from './traceui.js?v=25';
+import { loftGrid } from './loft.js?v=25';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];

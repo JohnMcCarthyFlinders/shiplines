@@ -60,3 +60,5 @@ figcaption { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
 .link-box .btn { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
 .anyway { text-align: center; font-size: 15px; } .anyway a { color: var(--muted); } .anyway small { color: #5f7d9b; }
 footer { margin-top: 22px; text-align: center; font-size: 13px; color: #5f7d9b; }
+
+a.wiki { color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
