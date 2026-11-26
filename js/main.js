@@ -1,9 +1,10 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=10';
-import { gridFromCage, subdivide } from './subdiv.js?v=10';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=10';
-import { Viewer3D } from './viewer3d.js?v=10';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=10';
-import { initGame } from './game.js?v=10';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=11';
+import { gridFromCage, subdivide } from './subdiv.js?v=11';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=11';
+import { Viewer3D } from './viewer3d.js?v=11';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=11';
+import { initGame } from './game.js?v=11';
+import { initReference } from './refui.js?v=11';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -36,7 +37,7 @@ function schedule(full = true) {
   if (!raf) raf = requestAnimationFrame(() => { raf = 0; rebuild(); });
   clearTimeout(hydroTimer);
   hydroTimer = setTimeout(() => {
-    hydro = hydrostatics(grid, lines); renderHud(); if (state.view === '2d') renderSheet();
+    hydro = hydrostatics(grid, lines); ref?.afterHydro(); renderHud(); if (state.view === '2d') renderSheet();
     const w = hydroWaiters.splice(0); w.forEach((f) => f(hydro, lines));
     api.onUpdate?.();
   }, full ? 30 : 160);
@@ -46,6 +47,7 @@ function rebuild() {
   lines = computeLines(grid, state.lineOpts);
   viewer.convention = state.lineOpts.convention;
   viewer.updateSurface(grid);
+  ref?.afterLines(grid, lines);
   viewer.updateLines(lines);
   viewer.updateCage();
   renderHud();
@@ -86,7 +88,7 @@ function applyCage(recentre) {
   viewer.select(null);
   viewer.setCage(state.cage, recentre);
   rebuild();
-  if (recentre) { viewer._framed = false; viewer.updateLines(lines); viewer.setView(viewer.view || 'persp'); }
+  if (recentre) { viewer._framed = false; viewer.updateLines(lines); viewer.setView(viewer.view || 'persp'); ref?.onRecentre(); }
   schedule(true);
   updateUndoButtons();
 }
@@ -174,7 +176,7 @@ let lastSheet = null;
 function renderSheet() {
   if (!lines) return;
   if (!hydro) hydro = hydrostatics(grid, lines);
-  const meta = { name: $('#d-name').value || state.cage.name, type: state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, sternClosed: state.cage.sternClosed, certificate: state.certificate && state.showCert ? state.certificate : null };
+  const meta = { name: $('#d-name').value || state.cage.name, type: state.cage.type, drawnBy: $('#d-by').value, date: state.date, level: state.level, hydro, sternClosed: state.cage.sternClosed, certificate: state.certificate && state.showCert ? state.certificate : null, reconstruction: ref?.sheetMeta() };
   const r = renderDrawing(lines, meta, { paper: state.paper, aged: state.aged, inks: state.inks, convention: state.lineOpts.convention, layout: state.layout });
   lastSheet = r;
   const el = $('#sheet');
@@ -270,7 +272,7 @@ function exportCSV() {
   download(`${slug()}_offsets.csv`, head.concat(rows.map((r) => r.map((c) => (/[",]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(','))).join('\n'), 'text/csv');
 }
 function saveJSON() {
-  const data = { app: 'shiplines', version: 1, saved: new Date().toISOString(), cage: state.cage, level: state.level, lineOpts: state.lineOpts, drawing: { name: $('#d-name').value, drawnBy: $('#d-by').value, paper: state.paper } };
+  const data = { app: 'shiplines', version: 1, saved: new Date().toISOString(), cage: state.cage, level: state.level, lineOpts: state.lineOpts, drawing: { name: $('#d-name').value, drawnBy: $('#d-by').value, paper: state.paper }, reference: ref.save() };
   download(`${slug()}.shiplines.json`, JSON.stringify(data, null, 1), 'application/json');
 }
 function loadJSON(file) {
@@ -282,7 +284,7 @@ function loadJSON(file) {
       pushUndo();
       state.cage = d.cage; state.level = d.level ?? 2; Object.assign(state.lineOpts, d.lineOpts || {});
       if (d.drawing) { $('#d-name').value = d.drawing.name || d.cage.name; $('#d-by').value = d.drawing.drawnBy || ''; state.paper = d.drawing.paper || 'A3'; }
-      syncControls(); applyCage(true); toast('Design opened');
+      syncControls(); applyCage(true); ref.load(d.reference); toast('Design opened');
     } catch (e) { toast('Could not open: ' + e.message); }
   };
   fr.readAsText(file);
@@ -369,6 +371,7 @@ const api = {
   saveState: () => ({ cage: JSON.stringify(state.cage), level: state.level, lineOpts: { ...state.lineOpts }, name: $('#d-name').value, surface: viewer.surfaceMode,
     toggles: { showCage: $('#t-cage').checked, showLabels: $('#t-labels').checked } }),
   restoreState(sv) {
+    if (sv.lineOpts.convention !== state.lineOpts.convention) ref.onConvention(state.lineOpts.convention, sv.lineOpts.convention);
     state.cage = JSON.parse(sv.cage); state.level = sv.level; Object.assign(state.lineOpts, sv.lineOpts);
     syncControls(); viewer.setToggles(sv.toggles); setSurface(sv.surface); setCam('persp');
     applyCage(true); $('#d-name').value = sv.name;
@@ -386,6 +389,9 @@ const api = {
     sheetView.fitted = false;
   },
   setLock(on) {
+    state.playing = on;
+    ref.setPlaying(on);
+    if (on && state.lineOpts.convention !== 'steffy') ref.onConvention(state.lineOpts.convention, 'steffy');
     if (on) {
       // the game uses the default line set and Steffy's convention
       api._prevLineOpts = { ...state.lineOpts };
@@ -399,7 +405,10 @@ const api = {
   },
 };
 
+let ref = null;
+
 function init() {
+  ref = initReference({ state, viewer, lines: () => lines, grid: () => grid, schedule, toast, setCam, download });
   buildPresetButtons();
   initSheetPanZoom();
   $$('.tab').forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));
@@ -422,7 +431,9 @@ function init() {
   bindSlider('#lw', '#o-lw', (v) => `${v} px`, (v) => { viewer.lineWidth = v; viewer.updateLines(lines); });
   $('#t-wlabove').addEventListener('change', (e) => { state.lineOpts.wlAbove = e.target.checked; schedule(true); });
   $('#convention').addEventListener('change', (e) => {
+    const from = state.lineOpts.convention;
     state.lineOpts.convention = e.target.value; viewer.convention = e.target.value;
+    ref.onConvention(from, e.target.value);
     schedule(true);
     if (viewer.view && viewer.view !== 'persp') viewer.setView(viewer.view);
   });

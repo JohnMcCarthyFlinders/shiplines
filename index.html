@@ -19,7 +19,7 @@
   } catch (e) { /* keep the full tool */ }
 })();
 </script>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -88,6 +88,7 @@
         <button data-surf="holo" class="on">Hologram</button>
         <button data-surf="solid">Solid</button>
         <button data-surf="zebra" title="Reflection stripes: kinks and wobbles in the stripes show unfair spots">Zebra</button>
+        <button data-surf="evidence" title="Gold where recorded evidence supports the hull; blue where it is reconstructed">Evidence</button>
         <button data-surf="off">Off</button>
       </div>
       <div class="checks">
@@ -131,8 +132,70 @@
         </select></label>
     </section>
 
+    <section class="ref-sec" id="sec-trace">
+      <h3><span>05</span> Trace a plan</h3>
+      <p class="hint">Put a scanned lines plan behind the Profile, Plan or End view, calibrate it with two clicks, then shape the hull to match.</p>
+      <div class="seg" id="ul-view">
+        <button data-v="profile" class="on">Profile</button>
+        <button data-v="plan">Plan</button>
+        <button data-v="body">End</button>
+      </div>
+      <div class="row btns wrap">
+        <button id="ul-load" title="PNG or JPG of a lines plan">Load image…</button>
+        <button id="ul-cal" title="Click two points on the drawing and give the distance between them">Calibrate</button>
+        <button id="ul-del">Remove</button>
+      </div>
+      <input type="file" id="ul-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+      <div class="ul-status" id="ul-status"></div>
+      <div class="ul-ctrl" id="ul-ctrl" hidden>
+        <label class="slider">Opacity <output id="o-ulop">75%</output><input type="range" id="ul-op" min="0.1" max="1" step="0.05" value="0.75"></label>
+        <div class="checks"><label><input type="checkbox" id="ul-inv" checked> Light lines on dark</label><label><input type="checkbox" id="ul-show" checked> Show</label></div>
+        <div class="tune">
+          <label>Shift → <input type="number" id="ul-dh" step="0.1" value="0"> m</label>
+          <label>Shift ↑ <input type="number" id="ul-dv" step="0.1" value="0"> m</label>
+          <label>Scale <input type="number" id="ul-k" step="0.2" value="100"> %</label>
+          <label>Rotate <input type="number" id="ul-rot" step="0.1" value="0"> °</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="ref-sec" id="sec-evidence">
+      <h3><span>06</span> Evidence &amp; reconstruction</h3>
+      <p class="hint">Bring in what survives of a wreck, recorded points or a photogrammetry mesh, and fit the hull to it. Recorded and reconstructed parts are told apart on the hull and in the drawing.</p>
+      <div class="row btns wrap">
+        <button id="ev-pts" title="CSV/TXT/XYZ: x, y, z in metres per line">Import points…</button>
+        <button id="ev-obj" title="Wavefront OBJ mesh in metres">Import mesh…</button>
+        <button id="ev-sample" title="Load a sample wreck to practise on">Sample wreck</button>
+        <button id="ev-clear">Clear</button>
+      </div>
+      <input type="file" id="ev-file-pts" accept=".csv,.txt,.xyz,.pts,text/csv,text/plain" hidden>
+      <input type="file" id="ev-file-obj" accept=".obj" hidden>
+      <div id="ev-body" hidden>
+        <div class="ev-read" id="ev-read"></div>
+        <details class="ev-align">
+          <summary>Align the data to the hull</summary>
+          <div class="tune">
+            <label>Up axis <select id="ev-up"><option value="z">Z up</option><option value="y">Y up</option></select></label>
+            <label>Scale <input type="number" id="ev-scale" step="0.01" value="1"></label>
+            <label>Turn <input type="number" id="ev-yaw" step="1" value="0"> °</label>
+            <label>Move x <input type="number" id="ev-dx" step="0.1" value="0"> m</label>
+            <label>Move y <input type="number" id="ev-dy" step="0.1" value="0"> m</label>
+            <label>Move z <input type="number" id="ev-dz" step="0.1" value="0"> m</label>
+          </div>
+          <div class="row btns"><button id="ev-centre" title="Move the data to sit on the hull's baseline, centred along its length">Centre on hull</button></div>
+        </details>
+        <label class="slider">Fit tolerance <output id="o-evtol">30 mm</output><input type="range" id="ev-tol" min="5" max="300" step="5" value="30"></label>
+        <label class="slider">Evidence reach <output id="o-evreach">0.50 m</output><input type="range" id="ev-reach" min="0.1" max="3" step="0.05" value="0.5"></label>
+        <p class="hint">Hull within <i>reach</i> of a recorded point counts as <b>recorded</b> (solid lines); the rest is <b>reconstructed</b> (dashed). Use the <b>Evidence</b> surface to see it on the hull.</p>
+        <div class="checks"><label><input type="checkbox" id="ev-show" checked> Show evidence</label></div>
+        <label class="notes">Reconstruction notes (paradata)
+          <textarea id="ev-notes" rows="4" placeholder="What survives, what is conjecture, and why: sources, parallels, assumptions…"></textarea></label>
+        <div class="row btns"><button id="ev-report" title="Distance of every recorded point from the hull">Fit report CSV</button></div>
+      </div>
+    </section>
+
     <section>
-      <h3><span>05</span> Files</h3>
+      <h3><span>07</span> Files</h3>
       <div class="row btns wrap">
         <button id="btn-save" title="Save this design as JSON">Save design</button>
         <button id="btn-load" title="Open a saved design">Open…</button>
@@ -142,7 +205,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.6 · 26 Nov 2026</span></footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.7 · 26 Nov 2026</span></footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -215,6 +278,9 @@
         <p>The curves in the drawing are run through the computed intersection points like a draughtsman’s batten. Export the sheet as SVG or PNG, and the <b>table of offsets</b> as CSV.</p>
         <h4>Keys</h4>
         <p>Drag a handle directly, or click it for the arrow gizmo · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> nudge the selected handle in the current view (<kbd>Shift</kbd> = fine) · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
+        <h4>Trace a plan &amp; reconstruct a wreck</h4>
+        <p><b>Trace a plan:</b> load a scanned lines plan behind the Profile, Plan or End view, then <b>Calibrate</b>: click two points on the drawing (for example the ends of the baseline) and give the distance between them. Fine-tune with shift, scale and rotate, then shape the hull to the drawing.</p>
+        <p><b>Evidence &amp; reconstruction:</b> import recorded points (CSV of x, y, z in metres) or a photogrammetry mesh (OBJ), align them to the hull, and fit the hull to what survives. Points turn green when they lie within tolerance. Where the hull is near evidence it counts as <i>recorded</i> and is drawn solid; elsewhere it is <i>reconstructed</i> and drawn dashed, with your paradata notes on the sheet. Try <b>Sample wreck</b> to practise.</p>
         <h4>Play</h4>
         <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, match a midship section and fair a damaged hull. You finish with a certificate on a traditional lines plan.</p>
         <h4>Exercise ideas</h4>
@@ -278,6 +344,6 @@
 
 <div class="toast" id="toast"></div>
 <div class="touch-warn" id="touch-warn">💻 <b>Shiplines works best on a computer</b> with a mouse and a wide screen. <a href="mobile.html">Take the phone tour</a> <button onclick="this.parentNode.remove()" aria-label="Dismiss">✕</button></div>
-<script type="module" src="js/main.js?v=10"></script>
+<script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

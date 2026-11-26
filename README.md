@@ -38,6 +38,24 @@ python3 -m http.server 8000
 | **Lines drawing** | ISO A4–A1 sheet with zone-referenced frame, title block, scale of metres and an automatically chosen standard scale. The body plan goes beside the sheer plan, or below it for long hulls. Aged paper or clean, black or coloured inks, with the student's name and date. |
 | **Export** | Drawing as SVG (fonts embedded) or 150 dpi PNG, or print; table of offsets as CSV; hull as OBJ (Blender/Rhino); design as JSON (re-openable); 3D snapshot as PNG |
 
+## Trace a plan
+
+Load a scanned lines plan (PNG/JPG) behind the **Profile**, **Plan** or **End** view, and the hull's lines are drawn over it.
+- **Calibrate:** click two points on the drawing (the stern and bow ends of the baseline; the centreline in plan; or, in the end view, the centreline and a point a known distance out on the baseline), then enter the distance between them. The image is scaled, rotated and placed to match.
+- **Drawing faces the other way:** it is mirrored so it stays upright. Switch the convention to see it as drawn; the calibration stays fixed in space.
+- **Fine-tuning:** shift, scale, rotate, opacity, and light-on-dark display.
+- **Saving:** underlays are saved with the design.
+
+## Evidence & reconstruction
+
+Import what survives of a wreck and fit the hull to it.
+- **Points:** CSV/TXT/XYZ, one `x, y, z` (metres) per line. Dense clouds are thinned to about 20,000 points.
+- **Mesh:** a Wavefront OBJ, for example photogrammetry of surviving timbers.
+- **Alignment:** up axis (Z or Y), scale, turn and move, plus **Centre on hull**.
+- **Fit:** each point is coloured by its distance from the hull surface (green within tolerance, amber within 3×, red beyond), with RMS, maximum and % within tolerance. Port-side records count by symmetry. **Fit report CSV** lists every point's distance.
+- **Recorded vs reconstructed:** hull within the *evidence reach* of a recorded point counts as recorded. The **Evidence** surface shades the hull gold (recorded) or blue (reconstructed). In the lines drawing, recorded runs are solid and reconstructed runs dashed, recorded points near each section are plotted as crosses in the body plan, and a key plus the student's **reconstruction notes (paradata)** go on the sheet.
+- **Sample wreck:** a coastal trader whose lower hull survives amidships, as points on both sides and three strakes as a mesh.
+
 ## Play mode
 
 The opening screen offers two choices. **Test your skills** starts the challenge, and **Explore ship lines** goes straight to the tool. The ▶ PLAY button and the gold side-panel card also start the challenge.

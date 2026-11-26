@@ -64,7 +64,9 @@ export function renderDrawing(lines, meta, opts = {}) {
   const ml = 16, mr = 16, gx = 12, topLab = 9, titleSp = 11, gy = 8, botLab = 7;
 
   const cert = meta.certificate || null;
-  const CERT_H = cert ? 53 * kT : 0; // certificate cartouche, bottom-left beside the title block
+  const recon = !cert && meta.reconstruction ? meta.reconstruction : null; // key + paradata notes
+  const band = !!(cert || recon);   // something occupies the bottom-left, beside the title block
+  const CERT_H = band ? 53 * kT : 0;
   // leave room for the scale bar above the title block; a certificate sits bottom-left beside it,
   // so with a certificate the plans keep clear of the whole bottom band
   const tbTop = area.b - Math.max(TB.h, CERT_H) - 14;
@@ -78,15 +80,15 @@ export function renderDrawing(lines, meta, opts = {}) {
   // Layout A ('beside'): body plan to the right of the sheer plan, sharing its baseline (Steffy's usual layout).
   const fitBeside = (s) => {
     const w = ml + L * s + gx + 2 * B2 * s + mr, h = hTop(s) + hHB(s);
-    const besideTB = !cert && (area.l + Math.max(0, (AW - w) / 2) + ml + L * s + 6 < tbLeft || area.l + ml + L * s + 6 < tbLeft);
+    const besideTB = !band && (area.l + Math.max(0, (AW - w) / 2) + ml + L * s + 6 < tbLeft || area.l + ml + L * s + 6 < tbLeft);
     const ok = w <= AW && h <= AH && area.t + hTop(s) + 4 < tbTop && (besideTB || area.t + h < tbTop);
     return { ok, w, h };
   };
   // Layout B ('below'): body plan beneath the half-breadth plan, left of the title block (for long hulls).
   const fitBelow = (s) => {
     const w = ml + L * s + mr, h1 = hTop(s) + hHB(s), h = h1 + 6 + hBody(s);
-    const sheerClearsTB = !cert && area.l + ml + L * s + 6 < tbLeft;
-    const ok = w <= AW && h <= AH && area.l + wBody(s) < tbLeft - 6 && (sheerClearsTB || area.t + h1 < tbTop) && (!cert || area.t + h < tbTop);
+    const sheerClearsTB = !band && area.l + ml + L * s + 6 < tbLeft;
+    const ok = w <= AW && h <= AH && area.l + wBody(s) < tbLeft - 6 && (sheerClearsTB || area.t + h1 < tbTop) && (!band || area.t + h < tbTop);
     return { ok, w, h, h1 };
   };
   const best = (fit) => { for (const d of SCALES) if (fit(1000 / d).ok) return d; return SCALES[SCALES.length - 1]; };
@@ -100,8 +102,8 @@ export function renderDrawing(lines, meta, opts = {}) {
   let ox = area.l + Math.max(0, (AW - fit.w) / 2);
   const hbRight = (x) => x + ml + L * s + 6;
   if (hbRight(ox) >= tbLeft && area.t + (layout === 'below' ? fit.h1 : fit.h) >= tbTop) ox = area.l;
-  const clearsTB = !cert && hbRight(ox) < tbLeft;
-  const limit = cert ? tbTop : layout === 'below' ? area.b : clearsTB ? area.b : tbTop;
+  const clearsTB = !band && hbRight(ox) < tbLeft;
+  const limit = band ? tbTop : layout === 'below' ? area.b : clearsTB ? area.b : tbTop;
   const spare = Math.max(0, limit - (area.t + fit.h));
   const nGaps = layout === 'below' ? 3 : 2;
   const vg = o.plansOnly ? 0 : Math.min(spare / (nGaps + 1), 22);
@@ -130,6 +132,19 @@ export function renderDrawing(lines, meta, opts = {}) {
 
   const out = [];
   const P = (d, w, c = ink, extra = '') => d && out.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`);
+  // hull curve; where the polyline carries .support, recorded runs are solid and reconstructed runs dashed
+  const PL = (l, f, w, c = ink, extra = '') => {
+    const pts = l.map(f);
+    if (!l.support) return P(smoothPath(pts), w, c, extra);
+    let i = 0;
+    while (i < pts.length - 1) {
+      const sup = l.support[i] && l.support[i + 1];
+      let j = i + 1;
+      while (j < pts.length - 1 && (l.support[j] && l.support[j + 1]) === sup) j++;
+      P(smoothPath(pts.slice(i, j + 1)), w, c, sup ? extra : `${extra} stroke-dasharray="${f2(w * 5)} ${f2(w * 3.5)}"`);
+      i = j;
+    }
+  };
   const Ln = (x1, y1, x2, y2, w, c = ink, extra = '') => out.push(`<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="${c}" stroke-width="${w}" ${extra}/>`);
   const T = (x, y, txt, size = 2.6, anchor = 'middle', cls = 'hand', extra = '') => out.push(`<text x="${f2(x)}" y="${f2(y)}" font-size="${size}" text-anchor="${anchor}" class="${cls}" fill="${ink}" ${extra}>${esc(txt)}</text>`);
   const DASHDOT = 'stroke-dasharray="6 1.2 0.6 1.2"';
@@ -152,10 +167,10 @@ export function renderDrawing(lines, meta, opts = {}) {
   for (const w of lines.waterlines) Ln(xL, Yz(w.z), xR, Yz(w.z), hw('waterline', w, w.isLWL ? W_REF * 1.3 : W_GRID), hc('waterline', w, w.isLWL ? col('waterlines') : ink));
   Ln(xL - 4, Ybase, xR + 4, Ybase, W_REF); // baseline
   // buttocks (x,z)
-  for (const bt of lines.buttocks) for (const l of bt.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yz(q[2])])), hw('buttock', bt, W_HULL), hc('buttock', bt, col('buttocks')));
+  for (const bt of lines.buttocks) for (const l of bt.polylines) PL(l, (q) => [Xs(q[0]), Yz(q[2])], hw('buttock', bt, W_HULL), hc('buttock', bt, col('buttocks')));
   // profile
   const ol = lines.outline;
-  for (const k of ['keel', 'stem', 'stern', 'sheer']) P(smoothPath(ol[k].map((q) => [Xs(q[0]), Yz(q[2])])), W_OUT);
+  for (const k of ['keel', 'stem', 'stern', 'sheer']) PL(ol[k], (q) => [Xs(q[0]), Yz(q[2])], W_OUT);
   // labels
   for (const st of lines.stations) stLabel(st, Xs(st.x), Yz(topZ) - 3.2);
   for (const w of lines.waterlines) T(xL - 3, Yz(w.z) + 0.9, w.label, w.isLWL ? 2.6 : 2.3, 'end');
@@ -171,10 +186,10 @@ export function renderDrawing(lines, meta, opts = {}) {
   for (const st of lines.stations) Ln(Xs(st.x), Yc - B2 * s - 1, Xs(st.x), Yc + dmax * s + 1, hw('station', st, st.isMid ? W_REF : W_GRID), hc('station', st, ink));
   Ln(xL - 4, Yc, xR + 4, Yc, W_REF, ink, DASHDOT); // centreline
   for (const bt of lines.buttocks) Ln(xL, Yc - bt.y * s, xR, Yc - bt.y * s, hw('buttock', bt, W_GRID), hc('buttock', bt, ink));
-  for (const w of lines.waterlines) for (const l of w.polylines) P(smoothPath(l.map((q) => [Xs(q[0]), Yc - q[1] * s])), hw('waterline', w, w.isLWL ? W_HULL * 1.5 : W_HULL), hc('waterline', w, col('waterlines')));
-  P(smoothPath(ol.sheer.map((q) => [Xs(q[0]), Yc - q[1] * s])), W_OUT);
-  P(smoothPath(ol.stern.map((q) => [Xs(q[0]), Yc - q[1] * s])), W_OUT);
-  for (const d of lines.diagonals) for (const l of d.developed) P(smoothPath(l.map((q) => [Xs(q[0]), Yc + q[1] * s])), hw('diagonal', d, W_HULL), hc('diagonal', d, col('diagonals')));
+  for (const w of lines.waterlines) for (const l of w.polylines) PL(l, (q) => [Xs(q[0]), Yc - q[1] * s], hw('waterline', w, w.isLWL ? W_HULL * 1.5 : W_HULL), hc('waterline', w, col('waterlines')));
+  PL(ol.sheer, (q) => [Xs(q[0]), Yc - q[1] * s], W_OUT);
+  PL(ol.stern, (q) => [Xs(q[0]), Yc - q[1] * s], W_OUT);
+  for (const d of lines.diagonals) for (const l of d.developed) PL(l, (q) => [Xs(q[0]), Yc + q[1] * s], hw('diagonal', d, W_HULL), hc('diagonal', d, col('diagonals')));
   // labels
   for (const bt of lines.buttocks) T(xL - 3, Yc - bt.y * s + 0.9, bt.label, 2.1, 'end');
   T(xL - 3, Yc + 0.9, 'CL', 2.1, 'end');
@@ -212,18 +227,36 @@ export function renderDrawing(lines, meta, opts = {}) {
   }
   for (const st of lines.stations) {
     const sides = st.isMid ? [true, false] : [st.fwd];
-    for (const fwd of sides) for (const l of st.polylines) P(smoothPath(l.map((q) => [Xb(q[1], fwd), YzB(q[2])])), hw('station', st, st.isMid ? W_HULL * 1.25 : W_HULL), hc('station', st, col('stations')));
+    for (const fwd of sides) for (const l of st.polylines) PL(l, (q) => [Xb(q[1], fwd), YzB(q[2])], hw('station', st, st.isMid ? W_HULL * 1.25 : W_HULL), hc('station', st, col('stations')));
     if (!st.isMid) {
       const l = st.polylines[0]; if (!l) continue;
       const top = l.reduce((m, p) => (p[2] > m[2] ? p : m), l[0]);
       T(Xb(top[1], st.fwd) + (st.fwd ? fwdSide : -fwdSide) * 0.6, YzB(top[2]) - 1.4, st.label, 2.2);
     }
   }
+  // recorded evidence near each station, plotted as small crosses (fore or after body side)
+  if (meta.reconstruction && meta.reconstruction.points) {
+    const ep = meta.reconstruction.points, band2 = (L / Math.max(2, lines.opts.stations)) * 0.08, cr = 0.45;
+    const marks = [];
+    for (const st of lines.stations) {
+      const near = [];
+      for (let i = 0; i < ep.length; i += 3) if (Math.abs(ep[i] - st.x) <= band2) near.push(i);
+      const step = Math.max(1, Math.ceil(near.length / 36)); // an even sample, so crosses stay legible
+      for (let n = 0; n < near.length; n += step) {
+      const i = near[n];
+      for (const fwd of st.isMid ? [true, false] : [st.fwd]) {
+        const X = Xb(Math.abs(ep[i + 1]), fwd), Y = YzB(ep[i + 2] - b.z0);
+        marks.push(`M${f2(X - cr)},${f2(Y)}h${f2(2 * cr)}M${f2(X)},${f2(Y - cr)}v${f2(2 * cr)}`);
+      }
+      }
+    }
+    if (marks.length) out.push(`<path d="${marks.join('')}" stroke="#8e1b17" stroke-width="0.14" fill="none"/>`);
+  }
   // sheer line through the section heads, fore and after bodies
   const sheerF = ol.sheer.filter((q) => q[0] >= b.xmid), sheerA = ol.sheer.filter((q) => q[0] <= b.xmid);
-  P(smoothPath(sheerF.map((q) => [Xb(q[1], true), YzB(q[2])])), W_HULL * 0.9);
-  P(smoothPath(sheerA.map((q) => [Xb(q[1], false), YzB(q[2])])), W_HULL * 0.9);
-  if (!meta.sternClosed) P(smoothPath(ol.stern.map((q) => [Xb(q[1], false), YzB(q[2])])), W_HULL, ink, 'stroke-dasharray="1.6 0.8"');
+  PL(sheerF, (q) => [Xb(q[1], true), YzB(q[2])], W_HULL * 0.9);
+  PL(sheerA, (q) => [Xb(q[1], false), YzB(q[2])], W_HULL * 0.9);
+  if (!meta.sternClosed) PL(ol.stern, (q) => [Xb(q[1], false), YzB(q[2])], W_HULL, ink, 'stroke-dasharray="1.6 0.8"');
   // midship mark and labels
   const midSt = lines.stations.find((x) => x.isMid);
   if (midSt) amidships(Xbc, YzB(topZ) - 4.1);
@@ -307,6 +340,7 @@ export function renderDrawing(lines, meta, opts = {}) {
   sb.push(`<text x="${f2(sbx + 5 * uw + 2)}" y="${f2(sby + 1.3)}" font-size="2" class="type" fill="${ink}">METRES</text>`);
   sb.push(`<text x="${f2(sbx + 2.5 * uw)}" y="${f2(sby + 4.4)}" font-size="1.8" text-anchor="middle" class="type" fill="${ink}">SCALE 1:${denom}</text>`);
   out.push(`<g>${sb.join('')}</g>`);
+  if (recon) out.push(`<g transform="translate(${f2(fr.l + 6)} ${f2(fr.b - 6 - 47 * kT)}) scale(${kT.toFixed(4)})">${reconstructionBlock(recon, ink)}</g>`);
   if (cert) out.push(`<g transform="translate(${f2(fr.l + 6)} ${f2(fr.b - 6 - 47 * kT)}) scale(${kT.toFixed(4)})">${certificateBlock(cert, 0, 0, 178, 47, ink)}</g>`);
 
   // frame with zone references, as on an engineering sheet
@@ -343,6 +377,36 @@ ${bg}
 <g ${inkFilter} opacity="${o.aged ? 0.92 : 1}">${fz.join('')}${out.join('\n')}</g>
 </svg>`;
   return { svg, scale: denom, paper: o.paper, size: [W, H], layout };
+}
+
+function wrapText(text, maxChars) {
+  const out = [];
+  for (const para of String(text || '').split(/\n+/)) {
+    let line = '';
+    for (const w of para.split(/\s+/).filter(Boolean)) {
+      if ((line + ' ' + w).trim().length > maxChars) { out.push(line); line = w; } else line = (line + ' ' + w).trim();
+    }
+    if (line) out.push(line);
+  }
+  return out;
+}
+
+// key to recorded / reconstructed lines and the reconstruction notes (paradata), 178 × 47 design units
+function reconstructionBlock(r, ink) {
+  const o = [];
+  o.push(`<rect x="0" y="0" width="178" height="47" fill="none" stroke="${ink}" stroke-width="0.5"/>`);
+  o.push(`<text x="4" y="6.2" font-size="3.4" class="title" fill="${ink}" letter-spacing="0.4">RECONSTRUCTION</text>`);
+  // key
+  const ky = 11.5;
+  o.push(`<line x1="4" y1="${ky}" x2="16" y2="${ky}" stroke="${ink}" stroke-width="0.4"/><text x="18" y="${ky + 0.8}" font-size="2.1" class="type" fill="${ink}">Recorded: within ${r.reach.toFixed(2)} m of evidence</text>`);
+  o.push(`<line x1="92" y1="${ky}" x2="104" y2="${ky}" stroke="${ink}" stroke-width="0.4" stroke-dasharray="2 1.4"/><text x="106" y="${ky + 0.8}" font-size="2.1" class="type" fill="${ink}">Reconstructed (conjectural)</text>`);
+  o.push(`<path d="M5,${ky + 5.2}h2.4M6.2,${ky + 4}v2.4" stroke="#8e1b17" stroke-width="0.3"/><text x="10" y="${ky + 6}" font-size="2.1" class="type" fill="${ink}">Recorded point near a section (body plan)</text>`);
+  if (r.stats) o.push(`<text x="92" y="${ky + 6}" font-size="2.1" class="type" fill="${ink}">${r.stats.n} points · RMS ${(r.stats.rms * 1000).toFixed(0)} mm · ${(r.stats.within * 100).toFixed(0)}% within ${(r.tol * 1000).toFixed(0)} mm</text>`);
+  o.push(`<line x1="3" y1="${ky + 9}" x2="175" y2="${ky + 9}" stroke="${ink}" stroke-width="0.15"/>`);
+  o.push(`<text x="4" y="${ky + 13}" font-size="2.2" class="title" fill="${ink}" letter-spacing="0.3">NOTES (PARADATA)</text>`);
+  const lines = wrapText(r.notes || 'No reconstruction notes recorded.', 96).slice(0, 8);
+  lines.forEach((ln, i) => o.push(`<text x="4" y="${ky + 17 + i * 2.75}" font-size="2" class="hand" fill="${ink}">${esc(ln)}</text>`));
+  return `<g class="reconstruction">${o.join('')}</g>`;
 }
 
 function certificateBlock(c, x, y, w, h, ink) {

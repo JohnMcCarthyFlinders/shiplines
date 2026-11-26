@@ -9,7 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=10';
+import { isLocked } from './presets.js?v=11';
+import { underlayCorners } from './reference.js?v=11';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -86,6 +87,7 @@ export class Viewer3D {
       holo: holoMaterial(0.8),
       holoMirror: holoMaterial(0.35),
       zebra: zebraMaterial(),
+      evidence: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, transparent: true, opacity: 0.92 }),
       solid: new THREE.MeshStandardMaterial({ color: 0x3a7fc0, roughness: 0.5, metalness: 0.15, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, emissive: 0x020c18 }),
     };
     this.hullGeo = new THREE.BufferGeometry();
@@ -166,7 +168,7 @@ export class Viewer3D {
     const hitPlane = (e, plane) => { this.ray.setFromCamera(ndc(e), this.camera); const v = new THREE.Vector3(); return this.ray.ray.intersectPlane(plane, v) ? v : null; };
     dom.addEventListener('pointerdown', (e) => {
       down = { x: e.clientX, y: e.clientY };
-      if (e.button !== 0 || this.tc.dragging || this.tc.axis) return;
+      if (e.button !== 0 || this.tc.dragging || this.tc.axis || this.clickCapture) return;
       const h = this._pick(e);
       if (!h) return;
       // direct drag: the handle follows the pointer in the plane facing the camera
@@ -208,6 +210,7 @@ export class Viewer3D {
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
       if (moved > 4 || e.button !== 0) return;
+      if (this.clickCapture) { this.clickCapture(e); return; }
       const h = this._pick(e);
       if (h) this.select(h.userData.i, h.userData.j);
       else if (!this.tc.axis) this.select(null);
@@ -248,6 +251,110 @@ export class Viewer3D {
     this.water.visible = this.showWater && !on;
     if (this.cage) this.updateCage();
     if (this.lines) this.updateLines(this.lines);
+  }
+
+  // ------------------------------------------------------------------ reference: underlays
+  /** Show scanned plans behind the orthographic views (only in their own view). */
+  setUnderlays(list, convention) {
+    for (const u of this.underlays || []) if (u.mesh) { this.root.remove(u.mesh); u.mesh.geometry.dispose(); }
+    this.underlays = list || [];
+    for (const u of this.underlays) {
+      if (!u.tex || u.tex.image !== u.img) { u.tex = new THREE.Texture(u.img); u.tex.colorSpace = THREE.SRGBColorSpace; u.tex.needsUpdate = true; }
+      const c = underlayCorners(u, convention).map((p) => S2T(p.x, p.y, p.z, this.o));
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(c.flatMap((v) => [v.x, v.y, v.z]), 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
+      g.setIndex([0, 3, 2, 0, 2, 1]);
+      const m = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, toneMapped: false,
+        uniforms: { map: { value: u.tex }, uOpacity: { value: u.opacity }, uInvert: { value: u.invert ? 1 : 0 } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+        fragmentShader: `uniform sampler2D map; uniform float uOpacity, uInvert; varying vec2 vUv;
+          void main(){
+            vec4 c = texture2D(map, vUv);
+            float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+            if (uInvert > 0.5) gl_FragColor = vec4(mix(vec3(0.85, 0.95, 1.0), vec3(1.0), 0.3), (1.0 - lum) * uOpacity * c.a * 1.25);
+            else gl_FragColor = vec4(c.rgb, uOpacity * c.a);
+          }`,
+      });
+      u.mesh = new THREE.Mesh(g, m); u.mesh.renderOrder = -2;
+      this.root.add(u.mesh);
+    }
+    this._underlayVis();
+  }
+  _underlayVis() {
+    for (const u of this.underlays || []) if (u.mesh) u.mesh.visible = u.visible && this.view === u.view;
+    this._applyBloom && this._applyBloom();
+  }
+  /** Image pixel under the pointer on the current view's underlay, or null. */
+  pickUnderlay(e) {
+    const u = (this.underlays || []).find((x) => x.mesh && x.mesh.visible);
+    if (!u) return null;
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.camera);
+    const hit = this.ray.intersectObject(u.mesh, false)[0];
+    if (!hit || !hit.uv) return null;
+    return { u, px: hit.uv.x * u.w, py: (1 - hit.uv.y) * u.h };
+  }
+  /** Ship-space point under the pointer in an orthographic view (depth 0). */
+  pointerShip(e) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.camera);
+    const n = new THREE.Vector3(); this.camera.getWorldDirection(n);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, new THREE.Vector3(0, 0, 0));
+    const v = new THREE.Vector3(); if (!this.ray.ray.intersectPlane(plane, v)) return null;
+    return { x: v.x + this.o.x, y: v.z, z: v.y + this.o.z };
+  }
+
+  // ------------------------------------------------------------------ reference: evidence
+  /** Recorded points (ship coords, Float64Array) and an optional mesh {pos, idx}. */
+  setEvidence(ev) {
+    for (const k of ['evPts', 'evMesh']) if (this[k]) { this.root.remove(this[k]); this[k].geometry.dispose(); this[k] = null; }
+    this.evidence = ev;
+    if (!ev) return;
+    const toT = (arr) => { const out = new Float32Array(arr.length); for (let i = 0; i < arr.length; i += 3) { out[i] = arr[i] - this.o.x; out[i + 1] = arr[i + 2] - this.o.z; out[i + 2] = arr[i + 1]; } return out; };
+    if (ev.points && ev.points.length) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(toT(ev.points), 3));
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ev.points.length).fill(0.8), 3));
+      this.evPts = new THREE.Points(g, new THREE.PointsMaterial({ size: 4.5, sizeAttenuation: false, vertexColors: true, toneMapped: false, depthTest: false, transparent: true, opacity: 0.95 }));
+      this.evPts.renderOrder = 8;
+      this.root.add(this.evPts);
+    }
+    if (ev.mesh && ev.mesh.idx.length) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(toT(ev.mesh.pos), 3));
+      g.setIndex(new THREE.BufferAttribute(ev.mesh.idx, 1));
+      g.computeVertexNormals();
+      this.evMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xb07a3c, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+      this.evMesh.renderOrder = 7;
+      this.root.add(this.evMesh);
+    }
+    this.setEvidenceVisible(this.evidenceVisible !== false);
+  }
+  setEvidenceVisible(on) { this.evidenceVisible = on; if (this.evPts) this.evPts.visible = on; if (this.evMesh) this.evMesh.visible = on; }
+  /** Colour points by distance from the hull: within tolerance green, near amber, far red. */
+  colourEvidence(dev, tol) {
+    if (!this.evPts || !dev) return;
+    const c = this.evPts.geometry.getAttribute('color');
+    for (let i = 0; i < dev.length; i++) {
+      const d = dev[i] / Math.max(1e-6, tol);
+      const col = d <= 1 ? [0.36, 1, 0.54] : d <= 3 ? [1, 0.76, 0.2] : [1, 0.3, 0.27];
+      c.setXYZ(i, ...col);
+    }
+    c.needsUpdate = true;
+  }
+  /** Per-vertex evidence support flags for the current surface (Uint8Array) or null. */
+  setSupport(flags) { this.supportFlags = flags; this._paintSupport(); }
+  _paintSupport() {
+    const pos = this.hullGeo.getAttribute('position'); if (!pos) return;
+    const n = pos.count, f = this.supportFlags;
+    const col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const sup = f && f.length === n ? f[i] : 0;
+      col.set(sup ? [0.85, 0.62, 0.3] : [0.16, 0.3, 0.45], i * 3);
+    }
+    this.hullGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   }
 
   /** Limit which handles are shown and editable: an array of [i, j], or null for all. */
@@ -376,6 +483,7 @@ export class Viewer3D {
     }
     this.hullGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.hullGeo.computeVertexNormals();
+    this._paintSupport();
     this.hullGeo.computeBoundingSphere();
     this.wire.geometry.setAttribute('position', this.hullGeo.getAttribute('position'));
     this.wire.geometry.computeBoundingSphere();
@@ -506,8 +614,10 @@ export class Viewer3D {
   setSurfaceMode(m) {
     this.surfaceMode = m;
     this.hull.visible = this.mirror.visible = m !== 'off';
-    this.hull.material = m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : this.mats.holo;
-    this.mirror.material = m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : this.mats.holoMirror;
+    const pickM = (holo) => (m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : m === 'evidence' ? this.mats.evidence : holo);
+    this.hull.material = pickM(this.mats.holo);
+    this.mirror.material = pickM(this.mats.holoMirror);
+    if (m === 'evidence') this._paintSupport();
     this.mirror.visible = this.mirror.visible && this.showMirror;
     this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus;
     this._applyBloom();
@@ -523,8 +633,9 @@ export class Viewer3D {
   }
 
   _applyBloom() {
-    const base = { holo: 0.14, solid: 0.08, zebra: 0.0, off: 0.12 }[this.surfaceMode] ?? 0.14;
-    this.bloom.strength = this.bloomOn === false ? 0 : base;
+    const base = { holo: 0.14, solid: 0.08, zebra: 0.0, off: 0.12, evidence: 0.04 }[this.surfaceMode] ?? 0.14;
+    const paper = (this.underlays || []).some((u) => u.mesh && u.mesh.visible && !u.invert);
+    this.bloom.strength = this.bloomOn === false || paper ? 0 : base;
   }
 
   frame() {
@@ -556,6 +667,7 @@ export class Viewer3D {
     }
     this.renderPass.camera = this.camera;
     this.tc.camera = this.camera;
+    this._underlayVis();
   }
   _fitOrtho() {
     const b = this._bounds; if (!b) return;
