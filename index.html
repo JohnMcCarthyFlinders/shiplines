@@ -19,7 +19,7 @@
   } catch (e) { /* keep the full tool */ }
 })();
 </script>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23002F60'/%3E%3Cpath d='M4 13 Q16 30 28 13' fill='none' stroke='%23FFD300' stroke-width='2.4'/%3E%3Cpath d='M4 13 H28' stroke='%233DE8FF' stroke-width='1.4'/%3E%3C/svg%3E">
 <script type="importmap">
 { "imports": {
@@ -143,19 +143,22 @@
       <div class="row btns wrap">
         <button id="ul-load" title="PNG or JPG of a lines plan">Load image…</button>
         <button id="ul-cal" title="Click two points on the drawing and give the distance between them">Calibrate</button>
+        <button id="ul-move" title="Drag to move the image, scroll to scale, Shift+scroll to rotate">✥ Move image</button>
         <button id="ul-del">Remove</button>
       </div>
       <input type="file" id="ul-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
       <div class="ul-status" id="ul-status"></div>
       <div class="ul-ctrl" id="ul-ctrl" hidden>
         <label class="slider">Opacity <output id="o-ulop">75%</output><input type="range" id="ul-op" min="0.1" max="1" step="0.05" value="0.75"></label>
-        <div class="checks"><label><input type="checkbox" id="ul-inv" checked> Light lines on dark</label><label><input type="checkbox" id="ul-show" checked> Show</label></div>
+        <div class="checks"><label><input type="checkbox" id="ul-inv" checked> Light lines on dark</label><label><input type="checkbox" id="ul-show" checked> Show</label>
+          <label style="grid-column: span 2"><input type="checkbox" id="ul-simple" checked> Simplify lines while tracing</label></div>
         <div class="tune">
           <label>Shift → <input type="number" id="ul-dh" step="0.1" value="0"> m</label>
           <label>Shift ↑ <input type="number" id="ul-dv" step="0.1" value="0"> m</label>
           <label>Scale <input type="number" id="ul-k" step="0.2" value="100"> %</label>
           <label>Rotate <input type="number" id="ul-rot" step="0.1" value="0"> °</label>
         </div>
+        <div class="row btns"><button id="ul-reset" title="Undo all moving, scaling and rotating since the last calibration">Reset adjustments</button></div>
       </div>
     </section>
 
@@ -205,7 +208,7 @@
       </div>
       <input type="file" id="file-in" accept=".json,application/json" hidden>
     </section>
-    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.7 · 26 Nov 2026</span></footer>
+    <footer class="credit">Flinders University · Maritime Archaeology Program<br>Conventions after J. R. Steffy, <i>Wooden Ship Building and the Interpretation of Shipwrecks</i> (1994). Created using Claude.<br><span class="ver">Version 1.8 · 26 Nov 2026</span></footer>
   </aside>
 
   <section class="stage" id="stage">
@@ -224,6 +227,7 @@
       </div>
       <div class="game" id="game" hidden></div>
       <div class="game-ref" id="game-ref" hidden><div class="gr-head">REFERENCE · LINES DRAWING <span class="gr-note"></span></div><div class="gr-svg"></div></div>
+      <div class="move-bar" id="move-bar" hidden><b>✥ Moving image</b> drag to move · scroll to scale · <kbd>Shift</kbd>+scroll to rotate <button id="move-done">Done</button></div>
       <div class="hud hud-tip" id="hud-tip">Drag to orbit · right-drag to pan · scroll to zoom · click a handle to edit</div>
     </div>
     <!-- 2D -->
@@ -279,7 +283,7 @@
         <h4>Keys</h4>
         <p>Drag a handle directly, or click it for the arrow gizmo · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> nudge the selected handle in the current view (<kbd>Shift</kbd> = fine) · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> selection mode · <kbd>Esc</kbd> deselect · <kbd>F</kbd> frame · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo · <kbd>Tab</kbd> switch 3D / drawing · <kbd>H</kbd> this guide</p>
         <h4>Trace a plan &amp; reconstruct a wreck</h4>
-        <p><b>Trace a plan:</b> load a scanned lines plan behind the Profile, Plan or End view, then <b>Calibrate</b>: click two points on the drawing (for example the ends of the baseline) and give the distance between them. Fine-tune with shift, scale and rotate, then shape the hull to the drawing.</p>
+        <p><b>Trace a plan:</b> load a scanned lines plan behind the Profile, Plan or End view, then <b>Calibrate</b>: click two points on the drawing (for example the ends of the baseline) and give the distance between them. Use <b>Move image</b> to drag it into place (scroll to scale, Shift+scroll to rotate). While tracing, the view is simplified to the outline and the lines that are curves in that view, with handles shown as pink diamonds. Then shape the hull to the drawing.</p>
         <p><b>Evidence &amp; reconstruction:</b> import recorded points (CSV of x, y, z in metres) or a photogrammetry mesh (OBJ), align them to the hull, and fit the hull to what survives. Points turn green when they lie within tolerance. Where the hull is near evidence it counts as <i>recorded</i> and is drawn solid; elsewhere it is <i>reconstructed</i> and drawn dashed, with your paradata notes on the sheet. Try <b>Sample wreck</b> to practise.</p>
         <h4>Play</h4>
         <p>Press <b>▶ Play</b> for a four-round challenge: identify lines, name sections, match a midship section and fair a damaged hull. You finish with a certificate on a traditional lines plan.</p>
@@ -344,6 +348,6 @@
 
 <div class="toast" id="toast"></div>
 <div class="touch-warn" id="touch-warn">💻 <b>Shiplines works best on a computer</b> with a mouse and a wide screen. <a href="mobile.html">Take the phone tour</a> <button onclick="this.parentNode.remove()" aria-label="Dismiss">✕</button></div>
-<script type="module" src="js/main.js?v=11"></script>
+<script type="module" src="js/main.js?v=12"></script>
 </body>
 </html>

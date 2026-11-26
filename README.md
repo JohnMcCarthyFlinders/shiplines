@@ -43,7 +43,9 @@ python3 -m http.server 8000
 Load a scanned lines plan (PNG/JPG) behind the **Profile**, **Plan** or **End** view, and the hull's lines are drawn over it.
 - **Calibrate:** click two points on the drawing (the stern and bow ends of the baseline; the centreline in plan; or, in the end view, the centreline and a point a known distance out on the baseline), then enter the distance between them. The image is scaled, rotated and placed to match.
 - **Drawing faces the other way:** it is mirrored so it stays upright. Switch the convention to see it as drawn; the calibration stays fixed in space.
-- **Fine-tuning:** shift, scale, rotate, opacity, and light-on-dark display.
+- **Move image:** drag moves the image, scroll scales it about the pointer, and Shift+scroll rotates it (hold Alt for fine steps). Esc or Done finishes; **Reset adjustments** returns to the calibrated position.
+- **Simplified tracing view:** while a plan is behind its view, only the outline and the lines that are true curves in that view are shown, in Flinders gold: buttocks in profile, waterlines in plan, stations in the end view. The hull surface, wireframe, straight lines and labels are hidden, and handles become pink diamonds. A checkbox turns this off.
+- **Fine-tuning:** typed shift, scale and rotate values, opacity, and light-on-dark display.
 - **Saving:** underlays are saved with the design.
 
 ## Evidence & reconstruction

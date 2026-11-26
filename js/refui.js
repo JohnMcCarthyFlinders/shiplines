@@ -2,11 +2,11 @@
 // main.js calls the returned hooks at the right moments in its update pipeline.
 
 import {
-  viewAxes, shipToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
+  viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
   parsePoints, parseOBJ, alignArray, decimate, boundsOf, ALIGN_DEFAULT,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=11';
-import { gridFromCage, subdivide } from './subdiv.js?v=11';
+} from './reference.js?v=12';
+import { gridFromCage, subdivide } from './subdiv.js?v=12';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -36,7 +36,7 @@ export function initReference(ctx) {
     const u = cur();
     $$('#ul-view button').forEach((b) => b.classList.toggle('on', b.dataset.v === R.ulView));
     $('#ul-ctrl').hidden = !u;
-    $('#ul-cal').disabled = !u; $('#ul-del').disabled = !u;
+    $('#ul-cal').disabled = !u; $('#ul-del').disabled = !u; $('#ul-move').disabled = !u;
     if (u) {
       $('#ul-op').value = u.opacity; $('#o-ulop').textContent = `${Math.round(u.opacity * 100)}%`;
       $('#ul-inv').checked = u.invert; $('#ul-show').checked = u.visible;
@@ -69,6 +69,7 @@ export function initReference(ctx) {
 
   function startCalibration() {
     const u = cur(); if (!u) return;
+    if (R.moving) stopMove();
     ctx.setCam(u.view);
     u.visible = true; refreshUL();
     const steps = CAL_STEPS[u.view];
@@ -125,12 +126,58 @@ export function initReference(ctx) {
 
   $('#ul-view').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
+    if (R.moving) stopMove();
     R.ulView = b.dataset.v; ctx.setCam(R.ulView); syncUL();
   });
   $('#ul-load').addEventListener('click', () => $('#ul-file').click());
   $('#ul-file').addEventListener('change', (e) => { if (e.target.files[0]) loadImage(e.target.files[0]); e.target.value = ''; });
   $('#ul-cal').addEventListener('click', startCalibration);
-  $('#ul-del').addEventListener('click', () => { R.underlays = R.underlays.filter((u) => u !== cur()); refreshUL(); });
+
+  // ---- move / scale / rotate the image with the mouse
+  function pointerHV(e, u) { const p = viewer.pointerShip(e); return p ? shipToHV(u.view, state.lineOpts.convention, p) : null; }
+  // transform the image about a view point P: scale by f and rotate by a (degrees)
+  function aboutPoint(u, P, f, aDeg) {
+    const now = imgToHV(u, u.w / 2, u.h / 2);           // C + d
+    const C = [now[0] - u.adj.dh, now[1] - u.adj.dv];
+    const r = (aDeg * Math.PI) / 180, c = Math.cos(r), sn = Math.sin(r);
+    const vx = now[0] - P[0], vy = now[1] - P[1];
+    const nx = P[0] + f * (c * vx - sn * vy), ny = P[1] + f * (sn * vx + c * vy);
+    u.adj.k *= f; u.adj.rot += aDeg; u.adj.dh = nx - C[0]; u.adj.dv = ny - C[1];
+  }
+  const redraw = () => { viewer.setUnderlays(R.underlays, state.lineOpts.convention); syncUL(); };
+  function stopMove() {
+    R.moving = false; viewer.setPointerHook(null);
+    $('#move-bar').hidden = true; $('#ul-move').classList.remove('on');
+  }
+  function startMove() {
+    const u = cur(); if (!u) return;
+    if (R.moving) { stopMove(); return; }
+    ctx.setCam(u.view); u.visible = true; redraw();
+    R.moving = true; $('#move-bar').hidden = false; $('#ul-move').classList.add('on');
+    let last = null;
+    viewer.setPointerHook({
+      down: (e) => { last = pointerHV(e, u); },
+      move: (e) => {
+        if (!last || !(e.buttons & 1)) return;
+        const p = pointerHV(e, u); if (!p) return;
+        u.adj.dh += p[0] - last[0]; u.adj.dv += p[1] - last[1]; last = p;
+        viewer.setUnderlays(R.underlays, state.lineOpts.convention);
+      },
+      up: () => { last = null; syncUL(); },
+      wheel: (e) => {
+        const P = pointerHV(e, u); if (!P) return;
+        if (e.shiftKey) aboutPoint(u, P, 1, -Math.sign(e.deltaY || e.deltaX) * (e.altKey ? 0.05 : 0.5));
+        else aboutPoint(u, P, Math.exp(-e.deltaY * (e.altKey ? 0.0002 : 0.001)), 0);
+        redraw();
+      },
+    });
+  }
+  $('#ul-move').addEventListener('click', startMove);
+  $('#move-done').addEventListener('click', stopMove);
+  window.addEventListener('keydown', (e) => { if (R.moving && (e.key === 'Escape' || e.key === 'Enter')) stopMove(); });
+  $('#ul-reset').addEventListener('click', () => { const u = cur(); if (!u) return; u.adj = { dh: 0, dv: 0, k: 1, rot: 0 }; redraw(); });
+  $('#ul-simple').addEventListener('change', (e) => { viewer.simplifyTrace = e.target.checked; viewer.traceView = undefined; viewer.setUnderlays(R.underlays, state.lineOpts.convention); });
+  $('#ul-del').addEventListener('click', () => { if (R.moving) stopMove(); R.underlays = R.underlays.filter((u) => u !== cur()); refreshUL(); });
   $('#ul-op').addEventListener('input', (e) => { const u = cur(); if (!u) return; u.opacity = +e.target.value; $('#o-ulop').textContent = `${Math.round(u.opacity * 100)}%`; if (u.mesh) u.mesh.material.uniforms.uOpacity.value = u.opacity; });
   $('#ul-inv').addEventListener('change', (e) => { const u = cur(); if (u) { u.invert = e.target.checked; refreshUL(); } });
   $('#ul-show').addEventListener('change', (e) => { const u = cur(); if (u) { u.visible = e.target.checked; refreshUL(); } });
@@ -244,7 +291,8 @@ export function initReference(ctx) {
   }
   function onConvention(from, to) { convertUnderlays(from, to); refreshUL(); }
   function setPlaying(on) {
-    for (const u of R.underlays) if (u.mesh) u.mesh.visible = on ? false : u.visible && viewer.view === u.view;
+    if (on && R.moving) stopMove();
+    viewer.hideUnderlays = on; viewer._underlayVis();
     viewer.setEvidenceVisible(on ? false : $('#ev-show').checked);
     if (on) viewer.setSupport(null);
   }

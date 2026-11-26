@@ -9,8 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=11';
-import { underlayCorners } from './reference.js?v=11';
+import { isLocked } from './presets.js?v=12';
+import { underlayCorners } from './reference.js?v=12';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -19,6 +19,8 @@ export const LINE_COLOURS = {
   buttocks: '#FF4FD8',
   diagonals: '#7CFF6B',
   outline: '#EAF2FF',
+  trace: '#FFD300',
+  traceOutline: '#FFE766',
 };
 const HANDLE = { free: 0xff9f1c, locked: 0xff5a36, selected: 0xffffff, group: 0xffe7a3 };
 
@@ -108,7 +110,7 @@ export class Viewer3D {
     this.root.add(this.water);
 
     // handles
-    this.handleGeo = new THREE.SphereGeometry(1, 16, 12);
+    this.handleGeo = new THREE.OctahedronGeometry(1.25, 0); // diamonds: never mistaken for a line
     this.handles = [];
     this.cageLine = null;
 
@@ -166,7 +168,12 @@ export class Viewer3D {
     let down = null;
     const ndc = (e) => { const r = dom.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
     const hitPlane = (e, plane) => { this.ray.setFromCamera(ndc(e), this.camera); const v = new THREE.Vector3(); return this.ray.ray.intersectPlane(plane, v) ? v : null; };
+    dom.addEventListener('pointerdown', (e) => { if (this.pointerHook) { e.stopImmediatePropagation(); dom.setPointerCapture(e.pointerId); this.pointerHook.down?.(e); } }, true);
+    dom.addEventListener('pointermove', (e) => { if (this.pointerHook) { this.pointerHook.move?.(e); } }, true);
+    dom.addEventListener('pointerup', (e) => { if (this.pointerHook) { e.stopImmediatePropagation(); this.pointerHook.up?.(e); } }, true);
+    dom.addEventListener('wheel', (e) => { if (this.pointerHook) { e.preventDefault(); this.pointerHook.wheel?.(e); } }, { passive: false, capture: true });
     dom.addEventListener('pointerdown', (e) => {
+      if (this.pointerHook) return;
       down = { x: e.clientX, y: e.clientY };
       if (e.button !== 0 || this.tc.dragging || this.tc.axis || this.clickCapture) return;
       const h = this._pick(e);
@@ -283,8 +290,24 @@ export class Viewer3D {
     this._underlayVis();
   }
   _underlayVis() {
-    for (const u of this.underlays || []) if (u.mesh) u.mesh.visible = u.visible && this.view === u.view;
+    let tv = null;
+    for (const u of this.underlays || []) if (u.mesh) { u.mesh.visible = u.visible && this.view === u.view && !this.hideUnderlays; if (u.mesh.visible) tv = u.view; }
+    if (this.simplifyTrace === false || this.focus) tv = null;
+    if (tv !== this.traceView) {
+      this.traceView = tv;
+      this.setSurfaceMode(this.surfaceMode);
+      if (this.lines) this.updateLines(this.lines);
+      if (this.cage) this.updateCage();
+    }
     this._applyBloom && this._applyBloom();
+  }
+  /** Hand the pointer to a tool (e.g. moving an underlay); null gives it back to the camera. */
+  setPointerHook(h) {
+    this.pointerHook = h;
+    this.orbitO.enabled = !h && this.camera === this.ortho;
+    this.orbit.enabled = !h && this.camera === this.persp;
+    this.renderer.domElement.style.cursor = h ? 'move' : '';
+    if (h) this.select(null);
   }
   /** Image pixel under the pointer on the current view's underlay, or null. */
   pickUnderlay(e) {
@@ -438,7 +461,8 @@ export class Viewer3D {
       const p = c.pts[h.userData.i][h.userData.j];
       h.position.copy(S2T(p.x, p.y, p.z, this.o));
       const sel = this._isSel(h), prim = this.sel && this.sel.i === h.userData.i && this.sel.j === h.userData.j;
-      h.material.color.setHex(prim ? HANDLE.selected : sel ? HANDLE.group : h.userData.locked ? HANDLE.locked : HANDLE.free);
+      const tr = !!this.traceView;
+      h.material.color.setHex(prim ? HANDLE.selected : sel ? HANDLE.group : h.userData.locked ? (tr ? 0xb04cff : HANDLE.locked) : (tr ? 0xff3d9a : HANDLE.free));
       h.userData.k = sel ? 1.6 : this.editable ? 1.5 : 1;
       h.visible = !this.editable || this.editable.has(`${h.userData.i},${h.userData.j}`);
     }
@@ -452,6 +476,8 @@ export class Viewer3D {
     if (this.cageLine) { this.cageGroup.remove(this.cageLine); this.cageLine.geometry.dispose(); }
     const g = new LineSegmentsGeometry(); g.setPositions(pos);
     if (!this.cageMat) this.cageMat = new LineMaterial({ color: 0xff9f1c, linewidth: 1.2, transparent: true, opacity: 0.55, depthTest: false, toneMapped: false });
+    this.cageMat.color.setHex(this.traceView ? 0xff3d9a : 0xff9f1c);
+    this.cageMat.opacity = this.traceView ? 0.28 : 0.55;
     this.cageLine = new LineSegments2(g, this.cageMat); this.cageLine.renderOrder = 9;
     this.cageGroup.add(this.cageLine);
     this.cageGroup.visible = this.showCage;
@@ -509,6 +535,19 @@ export class Viewer3D {
       this.linesGroup.add(o);
     };
     const lw = this.lineWidth;
+    const tv = this.traceView;
+    if (tv) {
+      // tracing: only the outline and the lines that are true curves in this view, in one colour
+      const ol = lines.outline;
+      const curves = tv === 'profile' ? lines.buttocks : tv === 'plan' ? lines.waterlines : lines.stations;
+      mk('trace', curves.flatMap((c) => c.polylines), Math.max(1.5, lw * 0.8));
+      mk('traceOutline', tv === 'profile' ? [ol.sheer, ol.keel, ol.stem, ol.stern] : tv === 'plan' ? [ol.sheer, ol.stern] : [ol.stern], Math.max(2, lw * 1.1));
+      for (const m of Object.values(this._mats || {})) m.opacity = 1;
+      this.linesGroup.visible = true;
+      this._buildHighlight();
+      this._placeEnvironment(lines.bounds);
+      return;
+    }
     if (this.vis.stations) mk('stations', lines.stations.flatMap((s) => s.polylines), lw);
     if (this.vis.waterlines) {
       mk('waterlines', lines.waterlines.filter((w) => !w.isLWL).flatMap((w) => w.polylines), lw);
@@ -613,13 +652,15 @@ export class Viewer3D {
   // ------------------------------------------------------------------ display
   setSurfaceMode(m) {
     this.surfaceMode = m;
-    this.hull.visible = this.mirror.visible = m !== 'off';
+    this.hull.visible = this.mirror.visible = m !== 'off' && !this.traceView;
     const pickM = (holo) => (m === 'solid' ? this.mats.solid : m === 'zebra' ? this.mats.zebra : m === 'evidence' ? this.mats.evidence : holo);
     this.hull.material = pickM(this.mats.holo);
     this.mirror.material = pickM(this.mats.holoMirror);
     if (m === 'evidence') this._paintSupport();
     this.mirror.visible = this.mirror.visible && this.showMirror;
-    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus;
+    this.wire.visible = this.showWire && m !== 'off' && m !== 'zebra' && !this.focus && !this.traceView;
+    if (this.water) this.water.visible = this.showWater && !this.focus && !this.traceView;
+    if (this.floor) this.floor.visible = !this.focus && !this.traceView;
     this._applyBloom();
     this.wireM.visible = this.wire.visible && this.showMirror;
   }
@@ -628,7 +669,6 @@ export class Viewer3D {
     this.cageGroup.visible = this.showCage;
     if (!this.showCage) this.select(null);
     this.setSurfaceMode(this.surfaceMode);
-    this.water.visible = this.showWater && !this.focus;
     this._applyBloom();
   }
 

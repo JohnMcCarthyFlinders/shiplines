@@ -1,10 +1,10 @@
-import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=11';
-import { gridFromCage, subdivide } from './subdiv.js?v=11';
-import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=11';
-import { Viewer3D } from './viewer3d.js?v=11';
-import { renderDrawing, PAPERS } from './drawing2d.js?v=11';
-import { initGame } from './game.js?v=11';
-import { initReference } from './refui.js?v=11';
+import { PRESETS, makePreset, cloneCage, isLocked } from './presets.js?v=12';
+import { gridFromCage, subdivide } from './subdiv.js?v=12';
+import { computeLines, hydrostatics, offsetsTable, LINE_DEFAULTS } from './lines.js?v=12';
+import { Viewer3D } from './viewer3d.js?v=12';
+import { renderDrawing, PAPERS } from './drawing2d.js?v=12';
+import { initGame } from './game.js?v=12';
+import { initReference } from './refui.js?v=12';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
