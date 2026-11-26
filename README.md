@@ -69,8 +69,12 @@ Current limits: the ends are a stem and a sternpost on the centreline (no transo
 Import what survives of a wreck and fit the hull to it.
 - **Points:** CSV/TXT/XYZ, one `x, y, z` (metres) per line. Dense clouds are thinned to about 20,000 points.
 - **Mesh:** a Wavefront OBJ, for example photogrammetry of surviving timbers.
-- **Alignment:** up axis (Z or Y), scale, turn and move, plus **Centre on hull**.
-- **Fit:** each point is coloured by its distance from the hull surface (green within tolerance, amber within 3×, red beyond), with RMS, maximum and % within tolerance. Port-side records count by symmetry. **Fit report CSV** lists every point's distance.
+- **Loose vertices:** vertices not used by any face (left in an OBJ when faces are deleted in MeshLab without *Remove Unreferenced Vertices*) are ignored, and the count is reported.
+- **Positioning:** imports are placed on the hull automatically and pivot on their own centre, so site-grid coordinates are no problem.
+  - A 3D gizmo **moves**, **rotates** (all three axes) and **scales** (uniformly) the evidence. The Profile, Plan and End views make each move exact.
+  - Typed values: up axis (Z or Y), scale, heel, trim, turn and move x/y/z.
+  - Buttons: **Centre on hull**, **Sit on baseline** and **Level**. One-sided records are placed with their inner edge on the centreline.
+- **Fit:** each point, and each vertex of an imported mesh, is coloured by its distance from the hull surface (green within tolerance, amber within 3×, red beyond), with RMS, maximum and % within tolerance. Port-side records count by symmetry. **Fit report CSV** lists every point's distance.
 - **Recorded vs reconstructed:** hull within the *evidence reach* of a recorded point counts as recorded. The **Evidence** surface shades the hull gold (recorded) or blue (reconstructed). In the lines drawing, recorded runs are solid and reconstructed runs dashed, recorded points near each section are plotted as crosses in the body plan, and a key plus the student's **reconstruction notes (paradata)** go on the sheet.
 - **Sample wreck:** a coastal trader whose lower hull survives amidships, as points on both sides and three strakes as a mesh.
 

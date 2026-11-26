@@ -9,8 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=14';
-import { underlayCorners } from './reference.js?v=14';
+import { isLocked } from './presets.js?v=15';
+import { underlayCorners } from './reference.js?v=15';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -181,7 +181,7 @@ export class Viewer3D {
     dom.addEventListener('pointerdown', (e) => {
       if (this.pointerHook && !this.clickCapture) return;
       down = { x: e.clientX, y: e.clientY };
-      if (e.button !== 0 || this.tc.dragging || this.tc.axis || this.clickCapture) return;
+      if (e.button !== 0 || this.tc.dragging || this.tc.axis || this.clickCapture || (this.evTc && (this.evTc.axis || this.evTc.dragging))) return;
       const h = this._pick(e);
       if (!h) return;
       // direct drag: the handle follows the pointer in the plane facing the camera
@@ -349,42 +349,83 @@ export class Viewer3D {
   }
 
   // ------------------------------------------------------------------ reference: evidence
-  /** Recorded points (ship coords, Float64Array) and an optional mesh {pos, idx}. */
+  /** Evidence in local coordinates ({points, mesh:{pos, idx}}, Float32 three axes) inside a group
+   *  whose transform is the alignment; null clears. */
   setEvidence(ev) {
-    for (const k of ['evPts', 'evMesh']) if (this[k]) { this.root.remove(this[k]); this[k].geometry.dispose(); this[k] = null; }
+    if (!this.evGroup) { this.evGroup = new THREE.Group(); this.root.add(this.evGroup); }
+    for (const k of ['evPts', 'evMesh']) if (this[k]) { this.evGroup.remove(this[k]); this[k].geometry.dispose(); this[k] = null; }
     this.evidence = ev;
-    if (!ev) return;
-    const toT = (arr) => { const out = new Float32Array(arr.length); for (let i = 0; i < arr.length; i += 3) { out[i] = arr[i] - this.o.x; out[i + 1] = arr[i + 2] - this.o.z; out[i + 2] = arr[i + 1]; } return out; };
+    if (!ev) { this.setEvidenceGizmo(null); return; }
     if (ev.points && ev.points.length) {
       const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(toT(ev.points), 3));
+      g.setAttribute('position', new THREE.BufferAttribute(ev.points, 3));
       g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ev.points.length).fill(0.8), 3));
       this.evPts = new THREE.Points(g, new THREE.PointsMaterial({ size: 4.5, sizeAttenuation: false, vertexColors: true, toneMapped: false, depthTest: false, transparent: true, opacity: 0.95 }));
       this.evPts.renderOrder = 8;
-      this.root.add(this.evPts);
+      this.evGroup.add(this.evPts);
     }
     if (ev.mesh && ev.mesh.idx.length) {
       const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(toT(ev.mesh.pos), 3));
+      g.setAttribute('position', new THREE.BufferAttribute(ev.mesh.pos, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ev.mesh.pos.length).fill(0).map((_, i) => [0.69, 0.48, 0.24][i % 3]), 3));
       g.setIndex(new THREE.BufferAttribute(ev.mesh.idx, 1));
       g.computeVertexNormals();
-      this.evMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xb07a3c, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+      this.evMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0.95 }));
       this.evMesh.renderOrder = 7;
-      this.root.add(this.evMesh);
+      this.evGroup.add(this.evMesh);
     }
     this.setEvidenceVisible(this.evidenceVisible !== false);
   }
-  setEvidenceVisible(on) { this.evidenceVisible = on; if (this.evPts) this.evPts.visible = on; if (this.evMesh) this.evMesh.visible = on; }
-  /** Colour points by distance from the hull: within tolerance green, near amber, far red. */
-  colourEvidence(dev, tol) {
-    if (!this.evPts || !dev) return;
-    const c = this.evPts.geometry.getAttribute('color');
-    for (let i = 0; i < dev.length; i++) {
-      const d = dev[i] / Math.max(1e-6, tol);
-      const col = d <= 1 ? [0.36, 1, 0.54] : d <= 3 ? [1, 0.76, 0.2] : [1, 0.3, 0.27];
-      c.setXYZ(i, ...col);
+  /** Place the evidence group from an alignment {scale, q, dx, dy, dz} (ship metres). */
+  setEvidenceTransform(a) {
+    if (!this.evGroup || this._evDragging) return;
+    this.evGroup.position.set(a.dx - this.o.x, a.dz - this.o.z, a.dy);
+    this.evGroup.quaternion.set(...a.q);
+    this.evGroup.scale.setScalar(a.scale);
+  }
+  /** Current alignment read back from the group (after the gizmo moved it). */
+  evidenceTransform() {
+    const g = this.evGroup;
+    return { scale: g.scale.x, q: g.quaternion.toArray(), dx: g.position.x + this.o.x, dy: g.position.z, dz: g.position.y + this.o.z };
+  }
+  /** Gizmo on the evidence: 'translate' | 'rotate' | 'scale' | null. */
+  setEvidenceGizmo(mode) {
+    if (!this.evTc) {
+      this.evTc = new TransformControls(this.camera, this.renderer.domElement);
+      this.evTc.setSize(1.1);
+      this.scene.add(this.evTc.getHelper());
+      this.evTc.addEventListener('dragging-changed', (e) => {
+        this._evDragging = e.value;
+        this.activeOrbit().enabled = !e.value;
+        if (!e.value) this.hooks.onEvidenceMoved?.(this.evidenceTransform());
+      });
+      this.evTc.addEventListener('objectChange', () => {
+        if (this.evTc.mode !== 'scale') return;
+        // keep scale uniform: follow whichever axis the student pulled
+        const s = this.evGroup.scale, u = this._evScale0 || s.x;
+        const pick = [s.x, s.y, s.z].reduce((m, v) => (Math.abs(v - u) > Math.abs(m - u) ? v : m), u);
+        s.setScalar(Math.max(1e-4, pick)); this._evScale0 = s.x;
+      });
+      this.evTc.addEventListener('mouseDown', () => { this._evScale0 = this.evGroup.scale.x; });
     }
-    c.needsUpdate = true;
+    this.evGizmo = mode;
+    if (!mode || !this.evGroup || !this.evidence) { this.evTc.detach(); return; }
+    this.select(null);
+    this.evTc.camera = this.camera;
+    this.evTc.setMode(mode);
+    this.evTc.setSpace(mode === 'translate' ? 'world' : 'local');
+    this.evTc.attach(this.evGroup);
+  }
+  setEvidenceVisible(on) { this.evidenceVisible = on; if (this.evGroup) this.evGroup.visible = on; if (!on && this.evTc) this.evTc.detach(); else if (on && this.evGizmo) this.setEvidenceGizmo(this.evGizmo); }
+  /** Colour points and mesh vertices by distance from the hull (green within tolerance, amber within 3×, red beyond). */
+  colourEvidence(devPts, tol, devMesh) {
+    const col = (d) => { d /= Math.max(1e-6, tol); return d <= 1 ? [0.36, 1, 0.54] : d <= 3 ? [1, 0.76, 0.2] : [1, 0.3, 0.27]; };
+    for (const [o, dev] of [[this.evPts, devPts], [this.evMesh, devMesh]]) {
+      if (!o || !dev) continue;
+      const c = o.geometry.getAttribute('color');
+      for (let i = 0; i < dev.length; i++) c.setXYZ(i, ...col(dev[i]));
+      c.needsUpdate = true;
+    }
   }
   /** Per-vertex evidence support flags for the current surface (Uint8Array) or null. */
   setSupport(flags) { this.supportFlags = flags; this._paintSupport(); }
@@ -727,6 +768,7 @@ export class Viewer3D {
     }
     this.renderPass.camera = this.camera;
     this.tc.camera = this.camera;
+    if (this.evTc) this.evTc.camera = this.camera;
     if (this.pointerHook) { this.orbitO.enabled = this.camera === this.ortho && !!this.pointerHookKeepOrbit; this.orbit.enabled = this.camera === this.persp && !!this.pointerHookKeepOrbit; }
     this._underlayVis();
     this.onViewChange?.(v);

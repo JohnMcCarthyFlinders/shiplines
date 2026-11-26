@@ -3,10 +3,11 @@
 
 import {
   viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
-  parsePoints, parseOBJ, alignArray, decimate, boundsOf, ALIGN_DEFAULT,
+  parsePoints, parseOBJ, localize, alignLocal, normAlign, decimateIdx, boundsOf,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=14';
-import { gridFromCage, subdivide } from './subdiv.js?v=14';
+} from './reference.js?v=15';
+import * as THREE from 'three';
+import { gridFromCage, subdivide } from './subdiv.js?v=15';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -188,40 +189,60 @@ export function initReference(ctx) {
   }
 
   // ================================================================== evidence
+  // Geometry is localised once (raw -> local axes, voxel-thinned fit set); the alignment is then a
+  // cheap transform: the gizmo moves the group, and only the fit set is re-transformed.
+  function buildEvidence() {
+    const ev = R.ev; if (!ev) return;
+    ev.Lp = ev.rawPts && ev.rawPts.length ? localize(ev.rawPts, ev.align.up) : new Float32Array(0);
+    ev.Lm = ev.rawMesh ? localize(ev.rawMesh.pos, ev.align.up) : null;
+    const L = new Float32Array(ev.Lp.length + (ev.Lm ? ev.Lm.length : 0));
+    L.set(ev.Lp, 0); if (ev.Lm) L.set(ev.Lm, ev.Lp.length);
+    // pivot on the data's own centre (site-grid files can sit far from their origin)
+    if (!ev.c || ev.c.up !== ev.align.up) { const bb = boundsOf(L); ev.c = { up: ev.align.up, v: [(bb[0] + bb[3]) / 2, (bb[1] + bb[4]) / 2, (bb[2] + bb[5]) / 2] }; }
+    for (const A of [L, ev.Lp, ev.Lm]) if (A) for (let i = 0; i < A.length; i += 3) { A[i] -= ev.c.v[0]; A[i + 1] -= ev.c.v[1]; A[i + 2] -= ev.c.v[2]; }
+    ev.L = L; ev.nP = ev.Lp.length / 3;
+    ev.dec = decimateIdx(L, 20000);
+    viewer.setEvidence({ points: ev.Lp.length ? ev.Lp : null, mesh: ev.Lm ? { pos: ev.Lm, idx: ev.rawMesh.idx } : null });
+    viewer.setEvidenceVisible($('#ev-show').checked);
+    viewer.setEvidenceGizmo(R.gizmo || null);
+    applyAlign();
+  }
   function applyAlign() {
     const ev = R.ev; if (!ev) return;
-    const parts = [];
-    if (ev.rawPts && ev.rawPts.length) parts.push(alignArray(ev.rawPts, ev.align));
-    if (ev.rawMesh) { ev.mesh = { pos: alignArray(ev.rawMesh.pos, ev.align), idx: ev.rawMesh.idx }; parts.push(ev.mesh.pos); } else ev.mesh = null;
-    const all = new Float64Array(parts.reduce((n, a) => n + a.length, 0));
-    let o = 0; for (const a of parts) { all.set(a, o); o += a.length; }
-    ev.points = decimate(all, 20000);
+    ev.points = alignLocal(ev.L, ev.align, ev.dec.keep);    // fit set, ship coordinates
+    ev.mesh = ev.Lm ? { idx: ev.rawMesh.idx } : null;
     R.has = supportIndex(ev.points, R.reach);
-    viewer.setEvidence({ points: ev.points, mesh: ev.mesh });
-    viewer.setEvidenceVisible($('#ev-show').checked);
+    viewer.setEvidenceTransform(ev.align);
     syncEV();
     ctx.schedule(true);
   }
-  function setEvidence(rawPts, rawMesh, label) {
+  function setEvidence(rawPts, rawMesh, label, shipCoords = false) {
     const keep = R.ev && R.ev.align;
-    R.ev = { rawPts: rawPts || (R.ev && R.ev.rawPts) || null, rawMesh: rawMesh || (R.ev && R.ev.rawMesh) || null, align: keep ? { ...keep } : { ...ALIGN_DEFAULT }, label };
-    applyAlign();
+    R.ev = { rawPts: rawPts || (R.ev && R.ev.rawPts) || null, rawMesh: rawMesh || (R.ev && R.ev.rawMesh) || null, align: keep ? { ...keep, q: [0, 0, 0, 1] } : normAlign(null), label };
+    $('#ev-align').open = true;
+    buildEvidence();
+    if (shipCoords) { const c = R.ev.c.v; Object.assign(R.ev.align, { dx: c[0], dy: c[2], dz: c[1] }); applyAlign(); }
+    else centreOnHull();
   }
+  const D = 180 / Math.PI;
   function syncEV() {
     const ev = R.ev;
     $('#ev-body').hidden = !ev;
     if (!ev) return;
     const a = ev.align;
-    $('#ev-up').value = a.up; $('#ev-scale').value = a.scale; $('#ev-yaw').value = a.yaw;
+    const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(...a.q), 'YXZ');
+    $('#ev-up').value = a.up; $('#ev-scale').value = +a.scale.toFixed(4);
+    $('#ev-heel').value = (e.x * D).toFixed(1); $('#ev-yaw').value = (e.y * D).toFixed(1); $('#ev-trim').value = (e.z * D).toFixed(1);
     $('#ev-dx').value = a.dx.toFixed(2); $('#ev-dy').value = a.dy.toFixed(2); $('#ev-dz').value = a.dz.toFixed(2);
+    $$('#ev-gizmo button').forEach((b) => b.classList.toggle('on', (b.dataset.g || null) === (R.gizmo || null) || (!R.gizmo && b.dataset.g === '')));
     readout();
   }
   function readout() {
     const ev = R.ev; if (!ev) return;
     const st = R.stats;
-    const n = ev.points.length / 3;
+    const n = (ev.L ? ev.L.length : 0) / 3;
     const cls = !st ? '' : st.within > 0.9 ? 'g' : st.within > 0.6 ? 'a' : 'r';
-    $('#ev-read').innerHTML = `<div>${esc(ev.label || 'Evidence')}: <b>${n.toLocaleString()}</b> points${ev.mesh ? ` · mesh ${(ev.mesh.idx.length / 3).toLocaleString()} tris` : ''}</div>` +
+    $('#ev-read').innerHTML = `<div>${esc(ev.label || 'Evidence')}: <b>${n.toLocaleString()}</b> ${ev.Lm ? 'vertices' : 'points'}${ev.mesh ? ` · ${(ev.mesh.idx.length / 3).toLocaleString()} tris` : ''}${ev.dropped ? ` · ${ev.dropped.toLocaleString()} loose vertices ignored` : ''}</div>` +
       (st ? `<div>Fit RMS <b>${(st.rms * 1000).toFixed(0)} mm</b> · max <b>${(st.max * 1000).toFixed(0)} mm</b></div><div>Within tolerance <b class="${cls}">${(st.within * 100).toFixed(0)}%</b> · hull recorded <b>${(R.supportFrac * 100).toFixed(0)}%</b></div>` : '<div>Measuring fit…</div>');
   }
   function centreOnHull() {
@@ -229,7 +250,9 @@ export function initReference(ctx) {
     const b = ctx.lines().bounds, e = boundsOf(ev.points);
     ev.align.dx += b.xmid - (e[0] + e[3]) / 2;
     ev.align.dz += b.z0 - e[2];
-    if (e[1] < 0 && e[4] > 0) ev.align.dy += -(e[1] + e[4]) / 2;
+    if (e[1] < 0 && e[4] > 0) ev.align.dy += -(e[1] + e[4]) / 2;   // both sides recorded: centre on the centreline
+    else if (e[4] <= 0) ev.align.dy += -e[4];                      // port side only: inner edge to the centreline
+    else ev.align.dy += -e[1];                                     // starboard side only
     applyAlign();
   }
   const readFile = (file, cb) => { const fr = new FileReader(); fr.onload = () => cb(fr.result); fr.readAsText(file); };
@@ -242,23 +265,46 @@ export function initReference(ctx) {
   });
   $('#ev-file-obj').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    readFile(f, (t) => { const m = parseOBJ(t); if (!m.pos.length) { ctx.toast('No mesh found in that OBJ'); return; } setEvidence(null, m, f.name); ctx.toast(`Mesh imported: ${(m.idx.length / 3).toLocaleString()} triangles`); });
+    readFile(f, (t) => { const m = parseOBJ(t); if (!m.pos.length) { ctx.toast('No faces found in that OBJ'); return; } setEvidence(null, m, f.name); R.ev.dropped = m.dropped; readout(); ctx.toast(`Mesh imported: ${(m.idx.length / 3).toLocaleString()} triangles` + (m.dropped ? ` · ${m.dropped.toLocaleString()} loose vertices (not part of any face) ignored` : '')); });
   });
   $('#ev-sample').addEventListener('click', () => {
     const w = sampleWreck();
     R.ev = null;
-    setEvidence(w.points, w.mesh, 'Sample wreck: coastal trader, lower hull');
+    setEvidence(w.points, w.mesh, 'Sample wreck: coastal trader, lower hull', true);
     if (!$('#ev-notes').value) { $('#ev-notes').value = 'Sample wreck. Lower hull survives amidships, keel to the turn of the bilge, recorded as points on both sides; three strakes survive on the starboard side. Ends, topsides and sheer are not preserved.'; R.notes = $('#ev-notes').value; }
     ctx.toast('Sample wreck loaded: try the Simple hull and fit it to the points');
   });
-  $('#ev-clear').addEventListener('click', () => { R.ev = null; R.has = null; R.dev = null; R.stats = null; viewer.setEvidence(null); viewer.setSupport(null); syncEV(); ctx.schedule(true); });
-  for (const [id, key, num] of [['#ev-up', 'up', false], ['#ev-scale', 'scale', true], ['#ev-yaw', 'yaw', true], ['#ev-dx', 'dx', true], ['#ev-dy', 'dy', true], ['#ev-dz', 'dz', true]]) {
-    $(id).addEventListener('change', (e) => { if (!R.ev) return; const v = num ? parseFloat(e.target.value) : e.target.value; if (num && !Number.isFinite(v)) return; R.ev.align[key] = v; applyAlign(); });
+  $('#ev-clear').addEventListener('click', () => { R.ev = null; R.has = null; R.dev = null; R.stats = null; R.gizmo = null; viewer.setEvidence(null); viewer.setSupport(null); syncEV(); ctx.schedule(true); });
+  $('#ev-up').addEventListener('change', (e) => { if (!R.ev) return; R.ev.align.up = e.target.value; buildEvidence(); centreOnHull(); });
+  for (const [id, key] of [['#ev-scale', 'scale'], ['#ev-dx', 'dx'], ['#ev-dy', 'dy'], ['#ev-dz', 'dz']]) {
+    $(id).addEventListener('change', (e) => { if (!R.ev) return; const v = parseFloat(e.target.value); if (!Number.isFinite(v) || (key === 'scale' && v <= 0)) return; R.ev.align[key] = v; applyAlign(); });
   }
+  for (const id of ['#ev-heel', '#ev-yaw', '#ev-trim']) {
+    $(id).addEventListener('change', () => {
+      if (!R.ev) return;
+      const v = (q) => (parseFloat($(q).value) || 0) / D;
+      R.ev.align.q = new THREE.Quaternion().setFromEuler(new THREE.Euler(v('#ev-heel'), v('#ev-yaw'), v('#ev-trim'), 'YXZ')).toArray();
+      applyAlign();
+    });
+  }
+  $('#ev-gizmo').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || !R.ev) return;
+    R.gizmo = b.dataset.g || null;
+    if (R.gizmo && !$('#ev-show').checked) { $('#ev-show').checked = true; viewer.setEvidenceVisible(true); }
+    viewer.setEvidenceGizmo(R.gizmo); syncEV();
+  });
+  $('#ev-level').addEventListener('click', () => { if (!R.ev) return; R.ev.align.q = [0, 0, 0, 1]; applyAlign(); });
+  $('#ev-floor').addEventListener('click', () => {
+    if (!R.ev || !R.ev.points.length) return;
+    const e = boundsOf(R.ev.points), b = ctx.lines().bounds;
+    R.ev.align.dz += b.z0 - e[2]; applyAlign();
+  });
+  viewer.hooks.onEvidenceMoved = (t) => { if (!R.ev) return; Object.assign(R.ev.align, t); applyAlign(); };
   $('#ev-centre').addEventListener('click', centreOnHull);
-  $('#ev-tol').addEventListener('input', (e) => { R.tol = +e.target.value / 1000; $('#o-evtol').textContent = `${e.target.value} mm`; afterHydro(); });
+  $('#ev-tol').addEventListener('input', (e) => { R.tol = +e.target.value / 1000; $('#o-evtol').textContent = `${e.target.value} mm`; if (R.dev) { R.stats = fitStats(R.dev, R.tol); paint(); readout(); } });
   $('#ev-reach').addEventListener('input', (e) => { R.reach = +e.target.value; $('#o-evreach').textContent = `${R.reach.toFixed(2)} m`; if (R.ev) R.has = supportIndex(R.ev.points, R.reach); ctx.schedule(true); });
   $('#ev-show').addEventListener('change', (e) => viewer.setEvidenceVisible(e.target.checked));
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && R.gizmo && !e.target.matches('input, textarea, select')) { R.gizmo = null; viewer.setEvidenceGizmo(null); syncEV(); } });
   $('#ev-notes').addEventListener('input', (e) => { R.notes = e.target.value; });
   $('#ev-report').addEventListener('click', () => {
     if (!R.ev || !R.dev) return;
@@ -280,8 +326,17 @@ export function initReference(ctx) {
     const g = state.source === 'loft' || state.level >= 3 ? ctx.grid() : subdivide(gridFromCage(state.cage), 3);
     R.dev = deviations(g, R.ev.points);
     R.stats = fitStats(R.dev, R.tol);
-    viewer.colourEvidence(R.dev, R.tol);
+    paint();
     readout();
+  }
+  // spread the fit-set distances back to every point and mesh vertex through the voxel map
+  function paint() {
+    const ev = R.ev; if (!ev || !R.dev) return;
+    const map = ev.dec.map, nP = ev.nP, nM = ev.Lm ? ev.Lm.length / 3 : 0;
+    const dp = new Float32Array(nP), dm = new Float32Array(nM);
+    for (let i = 0; i < nP; i++) dp[i] = R.dev[map[i]];
+    for (let i = 0; i < nM; i++) dm[i] = R.dev[map[nP + i]];
+    viewer.colourEvidence(nP ? dp : null, R.tol, nM ? dm : null);
   }
   function sheetMeta() {
     if (!R.ev || state.playing) return null;
@@ -289,22 +344,24 @@ export function initReference(ctx) {
   }
   function onRecentre() {
     viewer.setUnderlays(R.underlays, state.lineOpts.convention);
-    if (R.ev) { viewer.setEvidence({ points: R.ev.points, mesh: R.ev.mesh }); viewer.setEvidenceVisible($('#ev-show').checked); if (R.dev) viewer.colourEvidence(R.dev, R.tol); }
+    if (R.ev) { viewer.setEvidenceTransform(R.ev.align); paint(); }
   }
   function onConvention(from, to) { convertUnderlays(from, to); refreshUL(); }
   function setPlaying(on) {
     if (on && R.moving) stopMove();
     viewer.hideUnderlays = on; viewer._underlayVis();
     viewer.setEvidenceVisible(on ? false : $('#ev-show').checked);
+    if (on) { R.gizmo = null; viewer.setEvidenceGizmo(null); }
     if (on) viewer.setSupport(null);
   }
+  const decimSet = (raw) => new Set(decimateIdx(raw, 20000).keep);
   function save() {
     const r4 = (a) => Array.from(a, (v) => Math.round(v * 1e4) / 1e4);
     return {
       underlays: R.underlays.map((u) => ({ view: u.view, name: u.name, dataURL: u.dataURL, base: u.base, adj: u.adj, opacity: u.opacity, invert: u.invert, visible: u.visible, calibrated: u.calibrated })),
       evidence: R.ev ? {
-        label: R.ev.label, align: R.ev.align,
-        rawPts: R.ev.rawPts ? r4(R.ev.rawPts.length > 60000 ? decimate(R.ev.rawPts, 20000) : R.ev.rawPts) : null,
+        label: R.ev.label, align: R.ev.align, c: R.ev.c,
+        rawPts: R.ev.rawPts ? r4(R.ev.rawPts.length > 60000 ? R.ev.rawPts.filter((_, i) => decimSet(R.ev.rawPts).has(Math.floor(i / 3))) : R.ev.rawPts) : null,
         rawMesh: R.ev.rawMesh && R.ev.rawMesh.pos.length <= 300000 ? { pos: r4(R.ev.rawMesh.pos), idx: Array.from(R.ev.rawMesh.idx) } : null,
       } : null,
       tol: R.tol, reach: R.reach, notes: R.notes,
@@ -325,8 +382,8 @@ export function initReference(ctx) {
     }
     if (d.evidence) {
       const e = d.evidence;
-      R.ev = { rawPts: e.rawPts ? new Float64Array(e.rawPts) : null, rawMesh: e.rawMesh ? { pos: new Float64Array(e.rawMesh.pos), idx: new Uint32Array(e.rawMesh.idx) } : null, align: { ...ALIGN_DEFAULT, ...e.align }, label: e.label };
-      applyAlign();
+      R.ev = { rawPts: e.rawPts ? new Float64Array(e.rawPts) : null, rawMesh: e.rawMesh ? { pos: new Float64Array(e.rawMesh.pos), idx: new Uint32Array(e.rawMesh.idx) } : null, align: normAlign(e.align), label: e.label, c: e.c || { up: normAlign(e.align).up, v: [0, 0, 0] } };
+      buildEvidence();
     } else syncEV();
   }
 

@@ -3,8 +3,8 @@
 //  · evidence  — recorded points / meshes from a wreck, checked against the hull
 // All geometry here is in ship coordinates (metres): x fore-and-aft, y half-breadth, z height.
 
-import { makePreset } from './presets.js?v=14';
-import { gridFromCage, subdivide, gridBounds } from './subdiv.js?v=14';
+import { makePreset } from './presets.js?v=15';
+import { gridFromCage, subdivide, gridBounds } from './subdiv.js?v=15';
 
 // ======================================================================= view axes
 // Each orthographic view shows two ship axes. (h, v) are distances to the screen's
@@ -95,7 +95,8 @@ export function parsePoints(text) {
   }
   return new Float64Array(pts);
 }
-/** Wavefront OBJ: vertices and triangulated faces. */
+/** Wavefront OBJ: vertices and triangulated faces. Vertices not used by any face
+ *  (left behind when faces are deleted in MeshLab and similar) are dropped. */
 export function parseOBJ(text) {
   const v = [], f = [];
   for (const line of text.split(/\r?\n/)) {
@@ -105,23 +106,68 @@ export function parseOBJ(text) {
       for (let k = 1; k < ids.length - 1; k++) f.push(ids[0], ids[k], ids[k + 1]);
     }
   }
-  return { pos: new Float64Array(v), idx: new Uint32Array(f) };
+  const nv = v.length / 3, remap = new Int32Array(nv).fill(-1), pos = [];
+  for (const i of f) if (i >= 0 && i < nv && remap[i] < 0) { remap[i] = pos.length / 3; pos.push(v[i * 3], v[i * 3 + 1], v[i * 3 + 2]); }
+  const idx = new Uint32Array(f.length);
+  for (let k = 0; k < f.length; k++) idx[k] = Math.max(0, remap[f[k]]);
+  return { pos: new Float64Array(pos), idx, dropped: nv - pos.length / 3 };
 }
 
 // ======================================================================= alignment
-export const ALIGN_DEFAULT = { up: 'z', scale: 1, yaw: 0, dx: 0, dy: 0, dz: 0 };
-/** Raw data coordinates -> ship coordinates. */
-export function alignArray(src, a) {
-  const out = new Float64Array(src.length);
-  const r = (a.yaw * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
-  for (let i = 0; i < src.length; i += 3) {
-    let x = src[i], y = src[i + 1], z = src[i + 2];
-    if (a.up === 'y') { const t = y; y = -z; z = t; }
-    x *= a.scale; y *= a.scale; z *= a.scale;
-    out[i] = c * x - s * y + a.dx; out[i + 1] = s * x + c * y + a.dy; out[i + 2] = z + a.dz;
+// Raw file coordinates -> "local" coordinates (three.js axes: X fore-and-aft, Y up, Z across),
+// then a similarity transform (uniform scale k, rotation quaternion q, translation in ship metres).
+export const ALIGN_DEFAULT = { up: 'z', scale: 1, q: [0, 0, 0, 1], dx: 0, dy: 0, dz: 0 };
+export function normAlign(a) {
+  const o = { ...ALIGN_DEFAULT, ...a };
+  if (!a || !a.q) { const h = (-(a?.yaw || 0) * Math.PI) / 360; o.q = [0, Math.sin(h), 0, Math.cos(h)]; } // older saves: yaw only
+  delete o.yaw;
+  return o;
+}
+export function localize(raw, up) {
+  const out = new Float32Array(raw.length);
+  for (let i = 0; i < raw.length; i += 3) {
+    const x = raw[i], y = raw[i + 1], z = raw[i + 2];
+    if (up === 'y') { out[i] = x; out[i + 1] = y; out[i + 2] = -z; } // Y-up data
+    else { out[i] = x; out[i + 1] = z; out[i + 2] = y; }               // Z-up data
   }
   return out;
 }
+/** Local -> ship coordinates. */
+export function alignLocal(L, a, idx = null) {
+  const [qx, qy, qz, qw] = a.q, k = a.scale;
+  const n = idx ? idx.length : L.length / 3, out = new Float64Array(n * 3);
+  for (let m = 0; m < n; m++) {
+    const i = idx ? idx[m] : m;
+    const x = L[i * 3] * k, y = L[i * 3 + 1] * k, z = L[i * 3 + 2] * k;
+    // rotate by q: v + 2w(q×v) + 2q×(q×v)
+    const tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x);
+    const X = x + qw * tx + (qy * tz - qz * ty), Y = y + qw * ty + (qz * tx - qx * tz), Z = z + qw * tz + (qx * ty - qy * tx);
+    out[m * 3] = X + a.dx; out[m * 3 + 1] = Z + a.dy; out[m * 3 + 2] = Y + a.dz;
+  }
+  return out;
+}
+/** Voxel thinning that keeps a map from every source point to its representative. */
+export function decimateIdx(L, max = 20000) {
+  const n = L.length / 3;
+  const all = () => ({ keep: Int32Array.from({ length: n }, (_, i) => i), map: Int32Array.from({ length: n }, (_, i) => i) });
+  if (n <= max) return all();
+  const b = boundsOf(L);
+  const vol = Math.max(1e-9, (b[3] - b[0]) * Math.max(1e-3, b[4] - b[1]) * Math.max(1e-3, b[5] - b[2]));
+  let cell = Math.cbrt(vol / max);
+  for (let tries = 0; tries < 8; tries++) {
+    const slot = new Map(), keep = [], map = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      const k = `${Math.floor(L[i * 3] / cell)},${Math.floor(L[i * 3 + 1] / cell)},${Math.floor(L[i * 3 + 2] / cell)}`;
+      let s = slot.get(k); if (s === undefined) { s = keep.length; slot.set(k, s); keep.push(i); }
+      map[i] = s;
+    }
+    if (keep.length <= max * 1.1) return { keep: Int32Array.from(keep), map };
+    cell *= 1.3;
+  }
+  return all();
+}
+/** Raw data coordinates -> ship coordinates (kept for scripts and older callers). */
+export function alignArray(src, a) { const n = normAlign(a); return alignLocal(localize(src, n.up), n); }
 /** Thin a dense cloud to at most `max` points with a voxel grid. */
 export function decimate(pts, max = 20000) {
   const n = pts.length / 3;

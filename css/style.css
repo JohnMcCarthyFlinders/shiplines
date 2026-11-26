@@ -256,6 +256,8 @@ body.playing .hud-title, body.playing .hud-tip { display: none; }
 .ev-read b { color: #fff; font-weight: 600; } .ev-read .g { color: #5cff8a; } .ev-read .a { color: #ffc233; } .ev-read .r { color: #ff6b5a; }
 .ev-align { margin-top: 6px; font-size: 13.5px; color: #b9cde2; }
 .ev-align summary { cursor: pointer; color: var(--cyan); }
+#ev-gizmo { margin-top: 8px; }
+#ev-gizmo button.on { background: var(--gold); color: var(--navy); box-shadow: none; }
 .notes { display: block; font-size: 13.5px; color: #b9cde2; margin-top: 8px; }
 .notes textarea { width: 100%; margin-top: 3px; background: #00101f; border: 1px solid rgba(61,232,255,.3); color: var(--text); font: 13px/1.4 var(--ui); padding: 6px; resize: vertical; }
 body.playing .ref-sec { opacity: .3; pointer-events: none; }
