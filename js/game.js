@@ -1,5 +1,5 @@
 // Play mode: four scored rounds that test understanding of a lines plan,
-// introduced by an old shipwright, ending with a certificate drawn on the
+// introduced by Lofty Lofterson of the Mt Lofty Mould Loft, ending with a certificate drawn on the
 // student's own lines plan.
 //
 //   1  Know your lines        (20)  identify a highlighted line and the plan that shows its true shape
@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=13';
-import { gridFromCage, subdivide } from './subdiv.js?v=13';
-import { computeLines, hydrostatics } from './lines.js?v=13';
-import { renderDrawing } from './drawing2d.js?v=13';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=14';
+import { gridFromCage, subdivide } from './subdiv.js?v=14';
+import { computeLines, hydrostatics } from './lines.js?v=14';
+import { renderDrawing } from './drawing2d.js?v=14';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -24,9 +24,10 @@ export const GRADES = [
 ];
 export const gradeFor = (s) => GRADES.find(([min]) => s >= min)[1];
 
-// ---------------------------------------------------------------- the old shipwright
+// ---------------------------------------------------------------- Lofty Lofterson, the old shipwright
 export const SHIPWRIGHT = {
-  welcome: 'Well, hello there. Are you here to test yourself against the old trade, or would you rather have a look around the loft first?',
+  name: 'Lofty Lofterson · Mt Lofty Mould Loft',
+  welcome: 'Well, hello there. Lofty Lofterson, of the Mt Lofty Mould Loft. Are you here to test yourself against the old trade, or would you rather have a look around the loft first?',
   rounds: [
     'Come in, come in. You’ll be the new hand, so. Before you go near a batten I want to see do you know your lines. I’ll put a light on one of them, and you tell me what it is and which plan shows its true shape. There’s a drawing beside you there if you need it.',
     'Fair play to you. Now, Steffy had a tidy way of naming sections, and I’ll hold you to it: letters forward of the midship section, A, B, C, and numbers aft of it, 1, 2, 3. The bow is to the left, mind. Tell me the name of the section I’m showing you.',
@@ -144,7 +145,7 @@ export function initGame(api) {
   // the shipwright introduces a round
   function say(r, text) {
     return new Promise((resolve) => {
-      render(`${header(r)}<div class="wright-say">${SHIPWRIGHT_SVG}<blockquote>${esc(text)}<cite>The old shipwright</cite></blockquote></div>
+      render(`${header(r)}<div class="wright-say">${SHIPWRIGHT_SVG}<blockquote>${esc(text)}<cite>${SHIPWRIGHT.name}</cite></blockquote></div>
         <div class="g-foot"><span></span><button class="g-go" id="g-ready">Go on so ▸</button></div>`);
       panel.querySelector('#g-ready').addEventListener('click', resolve);
     });
@@ -398,7 +399,7 @@ export function initGame(api) {
     m.querySelector('.r-score').innerHTML = `${total}<small>/100</small>`;
     m.querySelector('.r-grade').textContent = grade;
     m.querySelector('.r-name').textContent = run.student;
-    m.querySelector('.r-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.verdict[grade])}</blockquote>`;
+    m.querySelector('.r-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.verdict[grade])}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
     m.querySelector('.r-rows').innerHTML = run.scores.map((s, i) => `<div><span>${i + 1} · ${ROUNDS[i].title}</span><b>${Math.round(s)} / ${ROUNDS[i].max}</b><div class="bar"><i style="width:${(s / ROUNDS[i].max) * 100}%"></i></div></div>`).join('');
     m.hidden = false;
     try { const best = +localStorage.getItem('shiplines.best') || 0; if (total > best) localStorage.setItem('shiplines.best', total); } catch { /* storage unavailable */ }
@@ -425,7 +426,7 @@ export function initGame(api) {
 
   // welcome screen: test your skills, or explore
   const welcome = $('#welcome');
-  welcome.querySelector('.w-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.welcome)}<cite>The old shipwright</cite></blockquote>`;
+  welcome.querySelector('.w-say').innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SHIPWRIGHT.welcome)}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
   $('#w-test').addEventListener('click', intro);
   $('#w-explore').addEventListener('click', () => (welcome.hidden = true));
   $('#w-guide').addEventListener('click', () => { welcome.hidden = true; $('#help').hidden = false; });

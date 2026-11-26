@@ -1,22 +1,22 @@
 // Phone tour: a light, mostly read-only introduction to lines plans that ends by
 // sending the reader to a computer for the full Shiplines tool.
 
-import { makePreset, PRESETS } from './presets.js?v=13';
-import { gridFromCage, subdivide } from './subdiv.js?v=13';
-import { computeLines } from './lines.js?v=13';
-import { renderDrawing } from './drawing2d.js?v=13';
-import { SHIPWRIGHT_SVG } from './game.js?v=13';
+import { makePreset, PRESETS } from './presets.js?v=14';
+import { gridFromCage, subdivide } from './subdiv.js?v=14';
+import { computeLines } from './lines.js?v=14';
+import { renderDrawing } from './drawing2d.js?v=14';
+import { SHIPWRIGHT_SVG, SHIPWRIGHT } from './game.js?v=14';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const SAYS = [
-  'Ah, you’ve come in on a phone. Shiplines is a drawing-board job, and you’ll want a proper screen and a mouse for the shaping. But come in anyway and I’ll give you the tour.',
+  'Lofty Lofterson, of the Mt Lofty Mould Loft. Ah, you’ve come in on a phone. Shiplines is a drawing-board job, and you’ll want a proper screen and a mouse for the shaping. But come in anyway and I’ll give you the tour.',
   'Steffy was a careful man, and a tidy drawing is half the battle. Get the conventions right and anyone can read your lines.',
-  'That’s the tour, so. The real learning is at the board: shaping a hull yourself, fairing it and drawing its lines. Get yourself in front of a computer and come back to me. I’ll have the challenge waiting.',
+  'That’s the tour, so. The real learning is at the board: shaping a hull yourself, fairing it and drawing its lines. Get yourself in front of a computer and come back to me at the Mould Loft. I’ll have the challenge waiting.',
 ];
-for (const el of $$('[data-say]')) el.innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SAYS[+el.dataset.say])}<cite>The old shipwright</cite></blockquote>`;
+for (const el of $$('[data-say]')) el.innerHTML = `${SHIPWRIGHT_SVG}<blockquote>${esc(SAYS[+el.dataset.say])}<cite>${SHIPWRIGHT.name}</cite></blockquote>`;
 
 // ---------------------------------------------------------------- lines figures
 const cache = {};
@@ -91,7 +91,7 @@ cards.forEach((c) => io.observe(c));
 // ---------------------------------------------------------------- slowly turning 3D hull (look, don't touch)
 (async () => {
   try {
-    const { Viewer3D } = await import('./viewer3d.js?v=13');
+    const { Viewer3D } = await import('./viewer3d.js?v=14');
     const v = new Viewer3D($('#hero'), {});
     const cage = makePreset('clipper');
     v.convention = 'steffy';

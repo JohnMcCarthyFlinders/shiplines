@@ -5,8 +5,8 @@ import {
   viewAxes, shipToHV, imgToHV, makeUnderlay, fitUnderlay, calibrateUnderlay,
   parsePoints, parseOBJ, alignArray, decimate, boundsOf, ALIGN_DEFAULT,
   deviations, fitStats, supportIndex, markSupport, surfaceSupport, sampleWreck,
-} from './reference.js?v=13';
-import { gridFromCage, subdivide } from './subdiv.js?v=13';
+} from './reference.js?v=14';
+import { gridFromCage, subdivide } from './subdiv.js?v=14';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
