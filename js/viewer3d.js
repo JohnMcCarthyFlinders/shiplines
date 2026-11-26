@@ -9,8 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { isLocked } from './presets.js?v=16';
-import { underlayCorners } from './reference.js?v=16';
+import { isLocked } from './presets.js?v=17';
+import { underlayCorners } from './reference.js?v=17';
 
 export const LINE_COLOURS = {
   stations: '#FFD300',   // Flinders Gold
@@ -632,6 +632,7 @@ export class Viewer3D {
       if (all && this.vis.waterlines) for (const w of lines.waterlines) lab(w.label, 'wl' + (w.isLWL ? ' lwl' : ''), b.xmin - b.L * 0.035, 0, w.z);
       if (all && this.vis.buttocks) for (const t of lines.buttocks) { const l = t.polylines.reduce((m, p) => (p.length > (m ? m.length : 0) ? p : m), null); if (l) { const q = l.reduce((m, p) => (p[0] > m[0] ? p : m), l[0]); lab(t.label, 'bt', q[0] + b.L * 0.012, t.y, q[2]); } }
       if (all && this.vis.diagonals) for (const d of lines.diagonals) { const l = d.polylines[0]; if (l) { const q = l.reduce((m, p) => (p[0] < m[0] ? p : m), l[0]); lab(d.label, 'dg', q[0] - b.L * 0.015, q[1], q[2]); } }
+      if (this.markMid && !all) { const m = lines.stations.find((t) => t.isMid); if (m) lab('⦶ MIDSHIPS', 'st mid mark', m.x, 0, b.Hmax + b.Hmax * 0.12); }
       if (this.labelMode !== 'none') lab('BOW', 'end', b.xmax + b.L * 0.06, 0, b.Hmid * 0.5);
       if (this.labelMode !== 'none') lab('STERN', 'end', b.xmin - b.L * 0.09, 0, b.Hmid * 0.5);
     }

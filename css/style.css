@@ -111,6 +111,7 @@ input[type=checkbox] { accent-color: var(--cyan); margin: 0; }
 .labels3d { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
 .lab3d { font: 600 11px/1 var(--mono); letter-spacing: .5px; padding: 2px 4px; text-shadow: 0 0 3px rgba(0,10,25,.9); white-space: nowrap; }
 .lab3d.st { color: #FFD300; } .lab3d.st.mid { font-size: 15px; }
+.lab3d.st.mid.mark { font-size: 13px; letter-spacing: 2px; color: #fff; background: rgba(0, 47, 96, .85); border: 1px solid var(--gold); padding: 3px 7px; }
 .lab3d.wl { color: #3DE8FF; } .lab3d.wl.lwl { color: #B8FBFF; font-size: 12px; }
 .lab3d.bt { color: #FF4FD8; } .lab3d.dg { color: #7CFF6B; }
 .lab3d.end { color: rgba(234, 242, 255, .55); font-size: 10px; letter-spacing: 3px; }

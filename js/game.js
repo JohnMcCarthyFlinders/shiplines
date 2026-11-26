@@ -7,10 +7,10 @@
 //   3  Match the section      (30)  move four handles until the midship section matches a target
 //   4  Fair the hull          (35)  find the three bumped handles among four and fair the hull
 
-import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=16';
-import { gridFromCage, subdivide } from './subdiv.js?v=16';
-import { computeLines, hydrostatics } from './lines.js?v=16';
-import { renderDrawing } from './drawing2d.js?v=16';
+import { cloneCage, isLocked, makePreset, PRESETS } from './presets.js?v=17';
+import { gridFromCage, subdivide } from './subdiv.js?v=17';
+import { computeLines, hydrostatics } from './lines.js?v=17';
+import { renderDrawing } from './drawing2d.js?v=17';
 
 const ROUNDS = [
   { key: 'lines', title: 'Know your lines', max: 20 },
@@ -202,25 +202,27 @@ export function initGame(api) {
     await say(1, SHIPWRIGHT.rounds[1]);
     let score = 0;
     const L = api.lines();
-    const all = L.stations.map((s) => s.label);
-    const chosen = shuffle(L.stations).slice(0, 5);
+    const all = L.stations.filter((s) => !s.isMid).map((s) => s.label);
+    const mid = L.stations.find((s) => s.isMid);
+    // midships is marked for them (it is not obvious by eye), so it is never the question
+    api.viewer.markMid = true; api.viewer.setGhost(mid.polylines); api.refresh();
+    const chosen = shuffle(L.stations.filter((s) => !s.isMid)).slice(0, 5);
     for (let q = 0; q < chosen.length; q++) {
       const st = chosen[q];
       api.viewer.setHighlight(st.polylines);
       const opts = shuffle([st.label, ...shuffle(all.filter((l) => l !== st.label)).slice(0, 3)]);
       const nice = (l) => (l === '⦶' ? '⦶  midship section' : l);
-      const mid = L.stations.find((s) => s.isMid);
       const n = Math.abs(st.k - mid.k);
       const why = st.isMid
         ? 'This is the midship section, marked with the amidships symbol ⦶. Every other section is counted from it.'
         : st.fwd
           ? `It is the ${ordinal(n)} section <b>forward</b> of midships. Steffy letters forward sections A, B, C … counting towards the bow, so it is <b>${st.label}</b>.`
           : `It is the ${ordinal(n)} section <b>aft</b> of midships. Steffy numbers after sections 1, 2, 3 … counting towards the stern, so it is <b>${st.label}</b>.`;
-      const ok = await ask(1, `Question ${q + 1} of 5`, 'Following <b>Steffy’s convention</b> (bow to the left), what is the label of the <b class="hl">flashing section</b>?', opts.map(nice), opts.indexOf(st.label), why);
+      const ok = await ask(1, `Question ${q + 1} of 5`, 'Following <b>Steffy’s convention</b> (bow to the left), what is the label of the <b class="hl">flashing section</b>? The midship section <b>⦶</b> is marked for you.', opts.map(nice), opts.indexOf(st.label), why);
       if (ok) score += 3;
       run.scores[1] = score;
     }
-    api.viewer.setHighlight(null);
+    api.viewer.setHighlight(null); api.viewer.setGhost(null); api.viewer.markMid = false; api.refresh();
     return score;
   }
   const ordinal = (n) => ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'][n] || `${n}th`;
@@ -391,7 +393,7 @@ export function initGame(api) {
     api.viewer.setFocus(null);
     api.onUpdate = null;
     api.viewer.labelMode = 'all'; api.viewer.dimmed = false; api.viewer.editLocked = false;
-    api.viewer.setHighlight(null); api.viewer.setGhost(null); api.viewer.setEditable(null);
+    api.viewer.setHighlight(null); api.viewer.setGhost(null); api.viewer.markMid = false; api.viewer.setEditable(null);
     api.viewer.setScreenShift(0);
     api.setLock(false);
     if (withCertificate && run?.result) {
